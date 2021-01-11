@@ -1,6 +1,6 @@
-const auth = require("../Configurations/auth.js");
-const MSTranslator = require("mstranslator");
+const auth = require("./../Configuration/auth.json");
+const MsTranslator = require('mstranslator');
 
-module.exports = new MSTranslator({
-	api_key: auth.tokens.microsoftTranslation,
+module.exports = new MsTranslator({
+	api_key: auth.tokens.microsoft_cs_key
 }, true);

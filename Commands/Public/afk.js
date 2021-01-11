@@ -1,49 +1,57 @@
-module.exports = async ({ Constants: { Colors } }, { memberDocument, memberQueryDocument }, msg, commandData) => {
-	if (msg.suffix) {
-		if (msg.suffix === ".") {
-			memberQueryDocument.set("afk_message", null);
-			msg.send({
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		if(suffix === ".") {
+			memberDocument.afk_message = null;
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.GREEN,
-					title: `Welcome back! 🎊`,
-					description: `I removed your AFK message in this server.`,
-					footer: {
-						text: `You can set a new one by using "${msg.guild.commandPrefix}${commandData.name} <message>"`,
+					author: {
+						name: bot.user.username,
+						icon_url: bot.user.avatarURL,
+						url: "https://github.com/GilbertGobbels/GAwesomeBot"
 					},
-				},
+					color: 0x9ECDF2,
+					description: "Welcome back! 🎊\nI removed your AFK message"
+				}
 			});
 		} else {
-			memberQueryDocument.set("afk_message", msg.suffix);
-			msg.send({
+			memberDocument.afk_message = suffix;
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.GREEN,
-					description: `Alright, I will now show that message when you are mentioned in chat. 👌`,
-					footer: {
-						text: `Use "${msg.guild.commandPrefix}${commandData.name} ." to remove it`,
+					author: {
+						name: bot.user.username,
+						icon_url: bot.user.avatarURL,
+						url: "https://github.com/GilbertGobbels/GAwesomeBot"
 					},
-				},
+					color: 0x9ECDF2,
+					description: `Alright, I'll show that when someone mentions you on this server. 👌\nUse \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} .\` to remove it`
+				}
 			});
 		}
-	} else if (memberDocument.afk_message) {
-		msg.send({
-			embed: {
-				color: Colors.BLUE,
-				title: `Your current AFK message is:`,
-				description: `${memberDocument.afk_message}`,
-				footer: {
-					text: `Use "${msg.guild.commandPrefix}${commandData.name} <message>" to change it or "${msg.guild.commandPrefix}${commandData.name} ." to remove it.`,
-				},
-			},
-		});
 	} else {
-		msg.send({
-			embed: {
-				color: Colors.LIGHT_RED,
-				description: `You don't have an AFK message set right now! ⌨`,
-				footer: {
-					text: `You can set one by using "${msg.guild.commandPrefix}${commandData.name} <message>"`,
-				},
-			},
-		});
+		if(memberDocument.afk_message) {
+			msg.channel.createMessage({
+				embed: {
+					author: {
+						name: bot.user.username,
+						icon_url: bot.user.avatarURL,
+						url: "https://github.com/GilbertGobbels/GAwesomeBot"
+					},
+					color: 0x9ECDF2,
+					description: `You have the AFK message \`${memberDocument.afk_message}\` set on this server 💭`
+				}
+			});
+		} else {
+			msg.channel.createMessage({
+				embed: {
+					author: {
+						name: bot.user.username,
+						icon_url: bot.user.avatarURL,
+						url: "https://github.com/GilbertGobbels/GAwesomeBot"
+					},
+					color: 0x00FF00,
+					description: "You don't have an AFK message set on this server ⌨"
+				}
+			});
+		}
 	}
 };

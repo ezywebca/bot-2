@@ -1,40 +1,19 @@
-const ModLog = require("../../Modules/ModLog");
+const ModLog = require("./../../Modules/ModerationLogging.js");
 
-module.exports = async ({ Constants: { Colors, Text } }, { serverDocument }, msg, commandData) => {
-	const args = msg.suffix ? msg.suffix.split(" ") : [];
-	if (args.length >= 2) {
-		const result = await ModLog.update(msg.guild, args[0].trim(), {
-			reason: msg.suffix.substring(msg.suffix.indexOf(" ") + 1).trim(),
-		});
-		if (isNaN(result)) {
-			switch (result.code) {
-				case "INVALID_MODLOG_CHANNEL":
-				case "MISSING_MODLOG_CHANNEL":
-				case "MODLOG_ENTRY_NOT_FOUND":
-					msg.send({
-						embed: {
-							color: Colors.SOFT_ERR,
-							description: result.message,
-						},
-					});
-					break;
-				default:
-					throw result;
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	const args = suffix.split(" ");
+	if(suffix && args.length >= 2) {
+		ModLog.update(msg.channel.guild, serverDocument, args[0].trim(), {
+			reason: suffix.substring(suffix.indexOf(" ") + 1).trim()
+		}, err => {
+			if(err) {
+				msg.channel.createMessage(err);
+			} else {
+				msg.channel.createMessage("Done ✅");
 			}
-		} else {
-			msg.send({
-				embed: {
-					color: Colors.SUCCESS,
-					description: "Reason updated ✅",
-				},
-			});
-		}
-	} else {
-		msg.send({
-			embed: {
-				color: Colors.INVALID,
-				description: Text.INVALID_USAGE(commandData, msg.guild.commandPrefix),
-			},
 		});
+	} else {
+		winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage(`${msg.author.mention} Make sure to use the syntax \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} ${commandData.usage}\`.`);
 	}
 };

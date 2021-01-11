@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-	<title><%= serverData.name %> Admin Console - GAwesomeBot</title>
+	<title><%= serverData.name %> Admin Console - AwesomeBot</title>
 	<% include ../partials/head %>
 </head>
 <body>
@@ -16,17 +16,17 @@
 				<div class="column">
 					<article class="message is-primary">
 						<div class="message-header">
-							<p>Welcome to the admin console for <strong><%= serverData.name %></strong>!</p>
+							Welcome to the admin console for <strong><%= serverData.name %></strong>!
 						</div>
 						<div class="message-body">
-							The GAwesomeBot <strong>admin console</strong> gives you full access to all of the bot's <strong>settings</strong> for this server. Everything from enabling/disabling commands to creating a public server listing to muting a user to building your very own extension. The menu on the left shows the various sections of the admin console, each dedicated to a particular command or feature. This page shows an <strong>overview of this server's activity</strong> in the past week.
+							The AwesomeBot <strong>admin console</strong> gives you full access to all of the bot's <strong>settings</strong> for this server. Everything from enabling/disabling commands to creating a public server listing to muting a user to building your very own extension. The menu on the left shows the various sections of the admin console, each dedicated to a particular command or feature. This page shows an <strong>overview of this server's activity</strong> in the past week.
 						</div>
 					</article>
 					<section class="hero is-light is-bold" style="border-radius: 3px;">
 						<div class="hero-body">
-							<div class="has-text-centered">
+							<div class="container has-text-centered">
 								<h1 class="title">
-									<strong><%= pageData.memberCount %></strong>
+									<strong><%= memberCount %></strong>
 								</h1>
 								<h2 class="subtitle">
 									<span class="icon">
@@ -36,32 +36,32 @@
 								</h2>
 							</div>
 							<br>
-							<div class="has-text-centered">
+							<div class="container has-text-centered">
 								<h1 class="title">
 									@<strong><%= serverData.owner.username %></strong>
 								</h1>
 								<h2 class="subtitle">
-									<img src="<%= serverData.owner.avatar %>" class="is-avatar is-small" alt="<%= serverData.owner.id %>">
+									<img src="<%= serverData.owner.avatar %>" style="border-radius: 100%;width: 24px;vertical-align: middle;" alt="<%= serverData.owner.id %>">
 									server owner
 								</h2>
 							</div>
 							<br>
-							<div class="has-text-centered">
+							<div class="container has-text-centered">
 								<h1 class="title">
-									<strong><%= pageData.messagesToday %></strong>
+									<strong><%= messagesToday %></strong>
 								</h1>
 								<h2 class="subtitle">
 									<span class="icon">
 					                    <i class="fa fa-comments-o"></i>
 					                </span>
-									message<%= pageData.messagesToday === 1 ? "" : "s" %> today
+									message<%= messagesToday==1 ? "" : "s" %> today
 								</h2>
 							</div>
-							<% if (pageData.topCommand) { %>
+							<% if(topCommand) { %>
 								<br>
-								<div class="has-text-centered">
+								<div class="container has-text-centered">
 									<h1 class="title">
-										<strong><%= pageData.topCommand %></strong>
+										<strong><%= topCommand %></strong>
 									</h1>
 									<h2 class="subtitle">
 										<span class="icon">
@@ -71,26 +71,40 @@
 									</h2>
 								</div>
 							<% } %>
-							<% if (pageData.topMember) { %>
+							<% if(topMember) { %>
 								<br>
-								<div class="has-text-centered">
+								<div class="container has-text-centered">
 									<h1 class="title">
-										@<strong><%= pageData.topMember.username %></strong>
+										@<strong><%= topMember.username %></strong>
 									</h1>
 									<h2 class="subtitle">
-										<img src="<%= pageData.topMember.avatar %>" class="is-avatar is-small" alt="<%= pageData.topMember.id %>">
+										<img src="<%= topMember.avatar %>" style="border-radius: 100%;width: 24px;vertical-align: middle;" alt="<%= topMember.id %>">
 										top member
 									</h2>
 								</div>
 							<% } %>
-							<% if (pageData.richestMember) { %>
+							<% if(topGame) { %>
 								<br>
-								<div class="has-text-centered">
+								<div class="container has-text-centered">
 									<h1 class="title">
-										@<strong><%= pageData.richestMember.username %></strong>
+										<strong><%= topGame %></strong>
 									</h1>
 									<h2 class="subtitle">
-										<img src="<%= pageData.richestMember.avatar %>" class="is-avatar is-small" alt="<%= pageData.richestMember.id %>">
+										<span class="icon">
+						                    <i class="fa fa-gamepad"></i>
+						                </span>
+										most-played game
+									</h2>
+								</div>
+							<% } %>
+							<% if(richestMember) { %>
+								<br>
+								<div class="container has-text-centered">
+									<h1 class="title">
+										@<strong><%= richestMember.username %></strong>
+									</h1>
+									<h2 class="subtitle">
+										<img src="<%= richestMember.avatar %>" style="border-radius: 100%;width: 24px;vertical-align: middle;" alt="<%= richestMember.id %>">
 										richest member
 									</h2>
 								</div>

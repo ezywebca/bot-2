@@ -1,34 +1,48 @@
-const fetch = require("chainfetch");
+const unirest = require("unirest");
 
-module.exports = async ({ Constants: { Colors, APIs, UserAgent, Text } }, documents, msg, commandData) => {
-	const number = msg.suffix || "random";
-	if (msg.suffix && isNaN(msg.suffix)) {
-		return msg.sendInvalidUsage(commandData, "That isn't a valid number!");
-	}
-
-	await msg.send(Text.THIRD_PARTY_FETCH(`We're fetching your ${number} fact`));
-
-	try {
-		const body = await fetch.get(APIs.NUMFACT(number)).set("User-Agent", UserAgent).onlyBody();
-
-		if (body && typeof body === "string") {
-			msg.send({
-				embed: {
-					color: Colors.RESPONSE,
-					description: body.length < 2048 ? body : `${body.substring(0, 2045)}...`,
-				},
-			});
-		}
-	} catch (err) {
-		logger.debug("Failed to fetch number fact for the numfact command.", { svrid: msg.guild.id }, err);
-		msg.send({
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	const number = suffix || "random";
+	if(suffix && isNaN(suffix)) {
+		winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage({
 			embed: {
-				color: Colors.SOFT_ERR,
-				description: "Failed to fetch a number fact...",
-				footer: {
-					text: "In hindsight, dividing by zero was a mistake.",
-				},
-			},
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0xFF0000,
+				description: `\`${suffix}\` is not a number!`
+			}
+		});
+	} else {
+		unirest.get(`http://numbersapi.com/${number}`).end(res => {
+			if(res.status == 200) {
+				msg.channel.createMessage({
+					embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0x00FF00,
+                        description: res.body
+					}
+				});
+			} else {
+				winston.warn(`Failed to fetch number fact for '${number}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+				msg.channel.createMessage({
+					embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+						description: "Oh no! 😤 Something went wrong."
+					}
+				});
+			}
 		});
 	}
 };

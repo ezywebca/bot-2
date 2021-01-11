@@ -1,89 +1,74 @@
-<form id="form" onsubmit="return false;">
+<form id="form" action="/extensions/my" method="post">
 	<div style="overflow-x: scroll;">
-		<% if (pageData.extensions.length > 0) { %>
-			<table class="table is-fullwidth">
+		<% if(extensions.length>0) { %>
+			<table class="table">
 				<thead>
 					<tr>
 						<th>Name</th>
 						<th>ID</th>
-						<th>Latest Version</th>
-						<th>Status</th>
 						<th>Type</th>
+						<th>Status</th>
 						<th>Points</th>
 						<th></th>
 					</tr>
 				</thead>
 				<tbody>
-					<% pageData.extensions.forEach(extension => { %>
+					<% for(var i=0; i<extensions.length; i++) { %>
 						<tr>
 							<td>
-								<%= extension.name %>
+								<%= extensions[i].name %>
 							</td>
 							<td>
-								<%= extension._id %>
+								<%= extensions[i]._id %>
 							</td>
 							<td>
-								V<%= extension.version %>
+								<%= extensions[i].type.charAt(0).toUpperCase() + extensions[i].type.slice(1) %>
 							</td>
 							<td>
-								<% if (extension.state === "gallery") { %>
-								Published
-								<% } else if (extension.state === "queue") { %>
-								In Queue
-								<% } else if (extension.state === "version_queue") { %>
-								Version in Queue
+								<% if(extensions[i].state=="gallery") { %>
+									Published
+								<% } else if(extensions[i].state=="queue") { %>
+									In Queue
 								<% } else { %>
-								Saved
+									Saved
 								<% } %>
 							</td>
 							<td>
-								<%= extension.versions.id(extension.version).type.charAt(0).toUpperCase() + extension.versions.id(extension.version).type.slice(1) %>
+								<%= extensions[i].points %>
 							</td>
 							<td>
-								<%= extension.points %>
-							</td>
-							<td>
-								<% if (extension.state !== "saved") { %>
-								<a class="button is-small" href="/extensions/<%= extension.state === "version_queue" ? "queue" : extension.state %>?id=<%= extension._id %>">
+								<% if (extensions[i].state !== "saved") { %>
+								<a class="button is-small" href="/extensions/<%= extensions[i].state %>?id=<%= extensions[i]._id %>">
 									<span class="icon is-small">
 										<i class="fa fa-eye"></i>
 									</span>
 									<span>View</span>
 								</a>
-								<% } else { %>
-								<button id="publish-<%= extension._id %>" class="button is-small" onclick="GAwesomeUtil.publishExtension('<%= extension._id %>'); return false;">
-									<span class="icon is-small">
-										<i class="fa fa-share-alt"></i>
-									</span>
-									<span>Publish</span>
-								</button>
 								<% } %>
-								<a class="button is-small is-primary" href="/extensions/builder?extid=<%= extension._id %>">
+								<a class="button is-small is-primary" href="/extensions/builder?extid=<%= extensions[i]._id %>">
 									<span class="icon is-small">
 										<i class="fa fa-pencil"></i>
 									</span>
 									<span>Edit</span>
 								</a>
-								<button id="delete-<%= extension._id %>" class="button is-small is-danger" onclick="GAwesomeUtil.deleteExtension('<%= extension._id %>'); return false;">
-									<span>Delete</span>
+								<button class="button is-small is-danger" name="extension-<%= i %>-removed">
+									<span>Remove</span>
 									<span class="icon is-small">
-										<i class="fa fa-trash"></i>
+										<i class="fa fa-times"></i>
 									</span>
 								</button>
 							</td>
 						</tr>
-					<% }); %>
+					<% } %>
 				</tbody>
 			</table>
 		<% } else { %>
 			<article class="message">
 				<div class="message-header">
-					<p>
-						<span class="icon">
-							<i class="fa fa-meh-o"></i>
-						</span>
-						Nothing to see here
-					</p>
+					<span class="icon">
+						<i class="fa fa-meh-o"></i>
+					</span>
+					<span>Nothing to see here</span>
 				</div>
 				<div class="message-body">
 					You haven't published any extensions yet. Head over to the <a href="/extensions/builder">extension builder</a> to get started building one!
@@ -92,15 +77,12 @@
 			<br>
 		<% } %>
 	</div>
-	<br>
-	<div class="field">
-		<p class="control">
-			<a class="button" href="/extensions/builder">
-				<span class="icon">
-					<i class="fa fa-code"></i>
-		    	</span>
-		    	<span>Build an extension</span>
-			</a>
-		</p>
-	</div>
+	<p class="control">
+		<a class="button" href="/extensions/builder">
+			<span class="icon">
+		        <i class="fa fa-code"></i>
+		    </span>
+		    <span>Build an extension</span>
+		</a>
+	</p>
 </form>

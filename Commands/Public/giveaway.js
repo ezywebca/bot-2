@@ -1,74 +1,103 @@
-const { Giveaways } = require("../../Modules/");
-
-module.exports = async ({ client, Constants: { Colors } }, { serverDocument, channelDocument, channelQueryDocument }, msg, commandData) => {
-	if (channelDocument.giveaway.isOngoing) {
-		if (msg.suffix) {
-			if (["enroll", "join"].includes(msg.suffix.toLowerCase().trim())) {
-				if (channelDocument.giveaway.creator_id === msg.author.id) {
-					msg.reply({
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(channelDocument.giveaway.isOngoing) {
+		if(suffix) {
+			if(suffix.toLowerCase() == "enroll" || suffix.toLowerCase() == "join") {
+				if(channelDocument.giveaway.creator_id == msg.author.id) {
+					msg.channel.createMessage({
 						embed: {
-							color: Colors.SOFT_ERR,
-							description: `You can't join your own giveaway. 😛`,
-						},
-					});
-				} else if (channelDocument.giveaway.participant_ids.includes(msg.author.id)) {
-					msg.send({
-						embed: {
-							color: Colors.SOFT_ERR,
-							description: `You've already enrolled in the giveaway **${channelDocument.giveaway.title}**. 🤪`,
-							footer: {
-								text: `PM GAwesomeBot (That's me!) "${commandData.name} ${msg.guild.name} | ${msg.channel.name}" to remove your entry.`,
-							},
-						},
+                            author: {
+                                name: bot.user.username,
+                                icon_url: bot.user.avatarURL,
+                                url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                            },
+                            color: 0x9ECDF2,
+							description: `${msg.author.mention} Uh, you can't join your own giveaway. That would kinda defeat the purpose, wouldn't it? 😛`
+						}
 					});
 				} else {
-					channelQueryDocument.push("giveaway.participant_ids", msg.author.id);
-					msg.reply({
-						embed: {
-							color: Colors.SUCCESS,
-							description: `Good luck! May the dolphins of luck be with you 🐬`,
-						},
-					});
+					if(channelDocument.giveaway.participant_ids.indexOf(msg.author.id) > -1) {
+						msg.channel.createMessage({
+							embed: {
+                                author: {
+                                    name: bot.user.username,
+                                    icon_url: bot.user.avatarURL,
+                                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                },
+                                color: 0x9ECDF2,
+								description: `You're already joined in the giveaway **${channelDocument.giveaway.title}** in this channel. Would you like to leave the giveaway?`
+							}
+						}).then(() => {
+							bot.awaitMessage(msg.channel.id, msg.author.id, message => {
+								if(config.yes_strings.includes(message.content.toLowerCase().trim())) {
+									channelDocument.giveaway.participant_ids.splice(channelDocument.giveaway.participant_ids.indexOf(msg.author.id), 1);
+									msg.channel.createMessage({
+										embed: {
+                                            author: {
+                                                name: bot.user.username,
+                                                icon_url: bot.user.avatarURL,
+                                                url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                            },
+                                            color: 0x00FF00,
+											description: `Ok, ${msg.author.mention} now has 0 chance of winning 🐿`
+										}
+									});
+								}
+							});
+						});
+					} else {
+						channelDocument.giveaway.participant_ids.push(msg.author.id);
+						msg.channel.createMessage({
+							embed: {
+                                author: {
+                                    name: bot.user.username,
+                                    icon_url: bot.user.avatarURL,
+                                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                },
+                                color: 0x00FF00,
+								description: `Alright ${msg.author.mention}! Here's a dolphin to wish you good luck: 🐬`
+							}
+						});
+					}
 				}
 			} else {
-				logger.verbose(`Invalid parameters \`${msg.suffix}\` provided for ${commandData.name}`, { usrid: msg.author.id });
-				msg.send({
+				winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+				msg.channel.createMessage({
 					embed: {
-						color: Colors.INVALID,
-						description: `🗯 Correct usage is: \`${commandData.name} ${commandData.usage}\``,
-					},
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+						description: `${msg.author.mention} huh? This command only takes \`enroll\` or \`join\` as a parameter`
+					}
 				});
 			}
 		} else {
-			const creator = msg.guild.members.get(channelDocument.giveaway.creator_id);
-			msg.send({
+			const creator = msg.channel.guild.members.get(channelDocument.giveaway.creator_id);
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.INFO,
-					title: `${channelDocument.giveaway.title} 🎁	`,
-					fields: [{
-						name: "Started by",
-						value: `@${creator ? client.getName(serverDocument, creator) : "invalid-user"}`,
-						inline: true,
-					}, {
-						name: "Total joined",
-						value: `${channelDocument.giveaway.participant_ids.length} ${channelDocument.giveaway.participant_ids.length === 1 ? "person" : "users"} currently`,
-						inline: true,
-					}],
-					footer: {
-						text: `Use "${msg.guild.commandPrefix}${commandData.name} enroll" to enroll in this giveaway.`,
-					},
-				},
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x9ECDF2,
+					description: `**${channelDocument.giveaway.title}** 🍰\nStarted by @${creator ? bot.getName(msg.channel.guild, serverDocument, creator) : "invalid-user"}\t${channelDocument.giveaway.participant_ids.length} ${channelDocument.giveaway.participant_ids.length==1 ? "person" : "people"} joined currently`
+				}
 			});
 		}
 	} else {
-		msg.send({
+		msg.channel.createMessage({
 			embed: {
-				color: Colors.INFO,
-				description: "There's isn't a giveaway going on in this channel. 👻",
-				footer: {
-					text: `PM GAwesomeBot (That's me!) "${commandData.name} ${msg.channel.guild.name} | #${msg.channel.name}" to start one.`,
-				},
-			},
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0x9ECDF2,
+				description: `There's isn't a giveaway going on in this channel. 👻 PM me \`${commandData.name} ${msg.channel.guild.name}|#${msg.channel.name}\` to start one.`
+			}
 		});
 	}
 };

@@ -1,93 +1,113 @@
 const moment = require("moment");
-const PaginatedEmbed = require("../../Modules/MessageUtils/PaginatedEmbed");
-const Permissions = require("discord.js/src/util/Permissions.js");
 
-const rolesPerPage = 25;
-
-module.exports = async ({ client, Constants: { Colors, Text }, Utils: { TitlecasePermissions } }, documents, msg, commandData) => {
-	if (!msg.suffix) {
-		const guildRoles = [...msg.guild.roles.values()].sort((a, b) => b.position - a.position);
-		const descriptions = [];
-		for (let i = 0; i < guildRoles.length; i += rolesPerPage) {
-			const roleSegment = guildRoles.slice(i, i + rolesPerPage).join("\n");
-			descriptions.push(`These are the roles on this server:\n\n${i ? `...${i} previous roles\n` : ""}${roleSegment}${i + rolesPerPage < guildRoles.length ? `\n...and ${guildRoles.length - i - rolesPerPage} more` : ""}`);
-		}
-
-		const memberRoles = [...msg.member.roles.values()].sort((a, b) => b.position - a.position);
-		const totalPermissionsBitfield = memberRoles.reduce((a, b) => a | b.permissions, 0); // eslint-disable-line no-bitwise
-		const totalPermissions = new Permissions(totalPermissionsBitfield);
-		for (let i = 0; i < memberRoles.length; i += rolesPerPage) {
-			const roleSegment = memberRoles.slice(i, i + rolesPerPage).join("\n");
-			descriptions.push([
-				`You currently have these roles:\n\n${i ? `...${i} previous roles\n` : ""}${roleSegment}${i + rolesPerPage < memberRoles.length ? `\n...and ${memberRoles.length - i - rolesPerPage} more` : ""}`,
-				"\nYour roles grant you get the following permissions:",
-				totalPermissionsBitfield ? `\`\`\`${TitlecasePermissions(totalPermissions.toArray(false).join(", "))}\`\`\`` : "You do not have any permissions on this server ⁉️",
-				totalPermissions.has(Permissions.FLAGS.ADMINISTRATOR, false) ? "⚠️ You have Administrator permissions which bypasses any other permission or override" : "",
-			].join("\n"));
-		}
-		if (descriptions.length === 2 && descriptions[0].length + descriptions[1].length < 2048) {
-			return msg.send({
-				embed: {
-					color: Colors.INFO,
-					title: `This guild has ${guildRoles.length} roles`,
-					description: `${descriptions[0]}\n\n${descriptions[1]}`,
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		const role = msg.channel.guild.roles.find(a => {
+			return a.name == suffix;
+		});
+		if(role) {
+			const color = role.color.toString(16);
+			const memberCount = msg.channel.guild.members.filter(member => {
+				return member.roles.includes(role.id);
+			}).length;
+			let embed_fields = [
+				{
+					name: `__**Role name**__`,
+					value: `${role.name}`,
+					inline: true
 				},
-			});
-		}
-
-		await new PaginatedEmbed(msg, {
-			color: Colors.INFO,
-			title: `This guild has ${guildRoles.length} roles`,
-			description: `{description}`,
-			footer: `Page {currentPage} out of {totalPages}`,
-		}, {
-			descriptions,
-		}).init();
-	} else {
-		let role;
-		try {
-			role = await client.roleSearch(msg.suffix, msg.guild);
-		} catch (err) {
-			if (err.code === "FAILED_TO_FIND") {
-				return msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						title: "What's that role? 🏷️",
-						description: "I do not know anything about a role with that name.",
-						footer: {
-							text: "You can find a list of all roles by running this command without any arguments.",
-						},
-					},
+				{
+					name: "🆔",
+					value: `${role.id}`,
+					inline: true
+				},
+				{
+					name: "🎨 Color",
+					value: `#${"000000".substring(0, 6 - color.length)}${color.toUpperCase()}`,
+					inline: true
+				},
+				{
+					name: "🗓 Role created",
+					value: `${moment(role.createdAt).fromNow()}`,
+					inline: true
+				},
+				{
+					name: "👤",
+					value: `${memberCount} member${memberCount==1 ? " has" : "s have"} this role`,
+					inline: true
+				},
+				{
+					name: "📶 Role",
+					value: `#${++role.position}`,
+					inline: true
+				}
+			];
+			if(role.mentionable) {
+				embed_fields.push({
+					name: "💟",
+					value: "Mentionable by everyone",
+					inline: true
 				});
 			}
-			throw err;
+			if(role.hoist) {
+				embed_fields.push({
+					name: "📌",
+					value: "Hoisted in member list",
+					inline: true
+				});
+			}
+			if(role.managed) {
+				embed_fields.push({
+					name: "🚀",
+					value: "Integrated with a bot or service",
+					inline: true
+				});
+			}
+			embed_fields.push({
+				name: "💎 Permissions",
+				value: `\`\`\`${Object.keys(role.permissions.json).sort().join(", ")}\`\`\``,
+				inline: false
+			});
+			msg.channel.createMessage({
+				embed: {
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x9ECDF2,
+					fields: embed_fields
+				}
+			});
+		} else {
+			winston.warn(`Requested role does not exist so ${commandData.name} cannot be shown`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+			msg.channel.createMessage({
+				content: "That role doesn't exist 🚽",
+			});
 		}
-		const permissions = role.permissions.toArray(false).join(", ");
-		const elements = [
-			`🎨 Color: **${role.color ? role.hexColor.toUpperCase() : "None"}**`,
-			`👥 Members: **${role.members.size}**`,
-			`#⃣ Position: **${msg.guild.roles.size - role.position}**`,
-			`🕒 Created: **${moment(role.createdTimestamp).fromNow()}**`,
-		];
-		if (role.mentionable) {
-			elements.push("📢 Mentionable by everyone");
-		}
-		if (role.hoist) {
-			elements.push("📌 Hoisted in member list");
-		}
-		if (role.managed) {
-			elements.push("🤖 Managed by an integration");
-		}
-		elements.push(`✅ Permissions:${permissions.length ? `\n\`\`\`${TitlecasePermissions(permissions)}\`\`\`` : " This role does not grant any additional permissions"}`);
-		if (role.permissions.has(Permissions.FLAGS.ADMINISTRATOR, false)) {
-			elements.push("⚠️ This role grants Administrator permissions which bypasses any other permission or override");
-		}
-		return msg.send({
-			embed: {
-				title: `Information about role ${role.name} :: ${role.id}`,
-				color: role.color || null,
-				description: elements.join("\n"),
-			},
+	} else {
+		const memberArray = Array.from(msg.channel.guild.members);
+		const info = [];
+		Array.from(msg.channel.guild.roles).sort((a, b) => {
+			return b[1].position - a[1].position;
+		}).slice(0, -1).forEach(role => {
+			let name = role[1].name;
+			if(role[1].hoist) {
+				name = `*${role[1].name}*`;
+			}
+			const members = memberArray.filter(member => {
+				return member[1].roles.includes(role[1].id);
+			}).map(member => {
+				return `@${bot.getName(msg.channel.guild, serverDocument, member[1])}`;
+			});
+			if(members.length>0) {
+				info.push(`**${name}**\n\t${members.join("\n\t")}`);
+			}
 		});
+		if(info.length > 0) {
+			bot.sendArray(msg.channel, info, 0, {disableEveryone: true});
+		} else {
+			msg.channel.createMessage("There are no roles on this server, which is...odd 🙍");
+		}
 	}
 };

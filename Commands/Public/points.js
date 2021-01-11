@@ -1,62 +1,110 @@
-module.exports = async ({ Constants: { Colors, Text }, client }, { serverDocument, userDocument }, msg) => {
-	if (msg.suffix === "me") {
-		msg.send({
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix == "me") {
+		msg.channel.createMessage({
 			embed: {
-				color: Colors.RESPONSE,
-				description: `You have **${userDocument.points}** GAwesomePoint${userDocument.points === 1 ? "" : "s"} ⭐`,
-			},
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0x00FF00,
+				description: `⭐ You have **${userDocument.points}** AwesomePoint${userDocument.points == 1 ? "" : "s"}`
+			}
 		});
-	} else if (msg.suffix) {
-		const member = await client.memberSearch(msg.suffix, msg.guild).catch(() => null);
-		if (member && member.user.bot) {
-			msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					description: `Don't be silly, bots can't have GAwesomePoints! 🤖`,
-				},
-			});
-		} else if (member) {
-			let targetUserDocument = await Users.findOne(member.id);
-			if (!targetUserDocument) targetUserDocument = Users.new({ _id: member.id });
-			msg.send({
-				embed: {
-					color: Colors.RESPONSE,
-					description: `**@${client.getName(serverDocument, member)}** has ${targetUserDocument.points} GAwesomePoint${targetUserDocument.points === 1 ? "" : "s"} ⭐`,
-				},
-			});
+	} else if(suffix) {
+		const member = bot.memberSearch(suffix, msg.channel.guild);
+		if(member) {
+			if(member.user.bot) {
+				msg.channel.createMessage({
+					embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+						description: "Don't be silly, bots can't have points! 🤖"
+					}
+				});
+			} else {
+				db.users.findOrCreate({_id: member.id}, (err, targetUserDocument) => {
+					let points = 0;
+					if(!err && targetUserDocument) {
+						points = targetUserDocument.points;
+					}
+					msg.channel.createMessage({
+						embed: {
+                            author: {
+                                name: bot.user.username,
+                                icon_url: bot.user.avatarURL,
+                                url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                            },
+                            color: 0x00FF00,
+							description: `⭐ **@${bot.getName(msg.channel.guild, serverDocument, member)}** has ${points} AwesomePoint${points == 1 ? "" : "s"}`
+						}
+					});
+				});
+			}
 		} else {
-			msg.send({
+			winston.warn(`Requested member does not exist so ${commandData.name} cannot be shown`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.SOFT_ERR,
-					description: "Who's that? I'd like to meet them 🤝",
-				},
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0xFF0000,
+					description: "Who's that? I'd like to meet them 🤝"
+				}
 			});
 		}
 	} else {
-		const userDocuments = await Users.find({ _id: { $in: [...msg.guild.members.keys()] }, points: { $gt: 0 } })
-			.sort({ points: -1 })
-			.limit(10)
-			.exec();
-		const fields = userDocuments.map(targetUserDocument => ({
-			name: `**@${client.getName(serverDocument, msg.guild.members.get(targetUserDocument._id))}:**`,
-			value: `${targetUserDocument.points} GAwesomePoint${targetUserDocument.points === 1 ? "" : "s"}`,
-			inline: true,
-		}));
-		if (fields.length) {
-			msg.send({
-				embed: {
-					color: Colors.RESPONSE,
-					title: fields.length === 1 ? `Here is the only member with GAwesomePoints 🌟` : `Here are the ${fields.length} members with the most GAwesomePoints 🌟`,
-					fields,
-				},
-			});
-		} else {
-			msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					description: "No one on this server has any GAwesomePoints! Use `+1` to upvote the previous message 🌠",
-				},
-			});
-		}
+		let embed_fields = [];
+		db.users.find({
+			_id: {
+				$in: Array.from(msg.channel.guild.members.keys())
+			},
+			points: {
+				$gt: 0
+			}
+		}).sort({
+			points: -1
+		}).limit(10).exec((err, userDocuments) => {
+			userDocuments.map(a => {
+				embed_fields.push({
+					name: `**@${bot.getName(msg.channel.guild, serverDocument, msg.channel.guild.members.get(a._id))}:**`,
+					value: `${a.points} AwesomePoint${a.points == 1 ? "" : "s"}`,
+					inline: true
+				});
+            	});
+			}).then(() => {
+            if(embed_fields.length > 0) {
+                msg.channel.createMessage({
+                    embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0x00FF00,
+						title: `Here are the ${embed_fields.length} users with the most points`,
+                        fields: embed_fields
+                    }
+                });
+            } else {
+                msg.channel.createMessage({
+                    embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+                        description: "No one on this server has any points! Use `@user +1` to give upvote someone. 🌟"
+                    }
+                });
+            }
+		});
 	}
 };

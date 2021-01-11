@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-	<title><%= pageData.pageTitle %></title>
-    <% include ../partials/head %>
+	<title><%= pageTitle %></title>
+	<% include ../partials/head %>
 </head>
 <body>
-	<section id="header" class="main-header-section hero is-primary is-small is-bold">
+	<section id="header" class="hero is-primary is-small is-bold" style="background: url('/header-image');background-size: cover;">
 		<div class="hero-head">
 			<% include ../partials/header %>
 		</div>
@@ -13,46 +13,45 @@
 			<div class="container has-text-centered">
 				<h1 class="title is-1">
 					<span class="icon is-large">
-                        <i class="fa fa-rss"></i>
+                        <i class="fa fa-paw"></i>
                     </span>
-                    GAwesomeBot blog
+					Dolphin Musings
 				</h1>
-                <h3 id="blog-header-subtitle" class="subtitle is-3">
-                    Dolphin Musings
-                </h3>
-                <%- include("../partials/adspace", { officialMode: typeof officialMode !== undefined ? officialMode : false, adsEnabled: true }) %>
-                <% if (isMaintainer) { %>
-                <a class="button is-white is-outlined" href="/blog/new">
-                    <span class="icon is-small">
-                        <i class="fa fa-plus"></i>
-                    </span>
-                    <span>New</span>
-                </a>
-                <% } %>
+				<h3 class="subtitle is-3">
+					The <strong>not official</strong> GAwesomeBot blog.
+                    <% if(isMaintainer) { %>
+                        <a class="button is-white is-outlined" href="/blog/compose">
+                            <span class="icon is-small">
+                                <i class="fa fa-plus"></i>
+                            </span>
+                            <span>New</span>
+                        </a>
+                    <% } %>
+				</h3>
 			</div>
 		</div>
 	</section>
 	<section class="section is-white">
 		<div class="container">
-            <% if (pageData.mode === "article") { %>
-                <% const { blogPost } = pageData; %>
+            <% if(mode=="article") { %>
                 <% include ../partials/blog-article %>
-            <% } else if (pageData.mode === "list") { %>
-                <% if (pageData.data.length > 0) { %>
-                    <% pageData.data.forEach(blogPost => { %>
+            <% } else if(mode=="list") { %>
+                <% if(data.length>0) { %>
+                    <% for(var i=0; i<data.length; i++) { %>
 						<div class="box">
+	                        <% var blogPost = data[i]; %>
 	                        <% include ../partials/blog-article %>
 						</div>
-                    <% }); %>
+                    <% } %>
                 <% } else { %>
                     <% var activeSearchQuery, mode = "blog"; %>
-                    <%- include("../partials/no-results", { isSearchQuery: true, activeSearchQuery, resetUrl: null, mode }) %>
+                    <% include ../partials/no-results %>
                 <% } %>
 
-                <nav class="level is-mobile arrow-link">
+                <nav class="level is-mobile">
                     <div class="level-left">
-                        <% if (pageData.currentPage < pageData.numPages) { %>
-                            <a class="button" href="/blog?page=<%= pageData.currentPage + 1 %>">
+                        <% if(currentPage<numPages) { %>
+                            <a class="button" href="/blog?page=<%= currentPage + 1 %>">
                                 <span class="icon is-small">
                                     <i class="fa fa-chevron-left"></i>
                                 </span>
@@ -61,9 +60,9 @@
                         <% } %>
                     </div>
                     <div class="level-right">
-                        <% if (pageData.currentPage > 1) { %>
+                        <% if(currentPage>1) { %>
                             <div class="level-item">
-                                <a class="button" href="/blog?page=<%= pageData.currentPage - 1 %>">
+                                <a class="button" href="/blog?page=<%= currentPage - 1 %>">
                                     <span>Newer Posts</span>
                                     <span class="icon is-small">
                                         <i class="fa fa-chevron-right"></i>
@@ -73,7 +72,7 @@
                         <% } %>
                     </div>
                 </nav>
-            <% } else if (pageData.mode === "compose") { %>
+            <% } else if(mode=="compose") { %>
                 <% include ../partials/blog-composer %>
             <% } %>
 		</div>

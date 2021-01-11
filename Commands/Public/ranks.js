@@ -1,111 +1,50 @@
-module.exports = async ({ client, Constants: { Colors, Text } }, { serverDocument, channelDocument, memberDocument }, msg, commandData) => {
-	const getRankText = (rank, amount = 10) => msg.guild.members.filter(member => {
-		const targetMemberDocument = serverDocument.members[member.id];
-		return targetMemberDocument && targetMemberDocument.rank === rank;
-	}).sort((memberA, memberB) => serverDocument.members[memberB.id].rank_score - serverDocument.members[memberA.id].rank_score)
-		.first(amount ? amount : 10)
-		.map(member => `@${client.getName(serverDocument, member)}`)
-		.join("\n");
-	if (msg.suffix) {
-		const rankDocument = serverDocument.config.ranks_list.id(msg.suffix);
-		if (rankDocument) {
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	const getRankText = rank => {
+		return msg.channel.guild.members.filter(member => {
+			const targetMemberDocument = serverDocument.members.id(member.id);
+			return targetMemberDocument && targetMemberDocument.rank==rank;
+		}).map(member => {
+			return `@${bot.getName(msg.channel.guild, serverDocument, member)}`;
+		}).sort().join("\n\t");
+	};
+	if(suffix) {
+		const rankDocument = serverDocument.config.ranks_list.id(suffix);
+		if(rankDocument) {
 			const info = getRankText(rankDocument._id);
-			if (info) {
-				msg.send({
-					embed: {
-						color: Colors.RESPONSE,
-						title: `The top 10 members with rank **${rankDocument._id}** 🏆`,
-						description: info,
-						footer: {
-							text: `You need a rank score of ${rankDocument.max_score} to achieve this rank`,
-						},
-					},
-				});
+			if(info) {
+				msg.channel.createMessage(`**🏆 ${rankDocument._id} (${rankDocument.max_score})**\n\t${info}`);
 			} else {
-				msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						description: `Nobody on **${msg.guild.name}** has the rank \`${rankDocument._id}\` 🤐`,
-					},
-				});
+				msg.channel.createMessage(`No one on the server has the rank \`${rankDocument._id}\`...yet 🤐`);
 			}
-		} else if (msg.suffix.toLowerCase() === "me") {
-			msg.send({
-				embed: {
-					color: Colors.INFO,
-					description: `You have the rank \`${memberDocument.rank}\` 🏅`,
-				},
-			});
+		} else if(suffix.toLowerCase() == "me") {
+			msg.channel.createMessage(`You have the rank \`${memberDocument.rank}\` 🏆`);
 		} else {
-			let member;
-			try {
-				member = await client.memberSearch(msg.suffix, msg.guild);
-			} catch (err) {
-				member = false;
-			}
-			if (member) {
-				if (member.user.bot) {
-					msg.send({
-						embed: {
-							color: Colors.SOFT_ERR,
-							description: "All robots are created equal 🤖",
-						},
-					});
+			const member = bot.memberSearch(suffix, msg.channel.guild);
+			if(member) {
+				if(member.user.bot) {
+					msg.channel.createMessage("All robots are created equal 🤖😡");
 				} else {
-					const targetMemberDocument = serverDocument.members[member.id];
-					if (targetMemberDocument && targetMemberDocument.rank) {
-						msg.send({
-							embed: {
-								color: Colors.INFO,
-								description: `**@${client.getName(serverDocument, member)}** has the rank \`${targetMemberDocument.rank}\` 🎖`,
-							},
-						});
+					const targetMemberDocument = serverDocument.members.id(member.id);
+					if(targetMemberDocument && targetMemberDocument.rank) {
+						msg.channel.createMessage(`**@${bot.getName(msg.channel.guild, serverDocument, member)}** has the rank \`${targetMemberDocument.rank}\` 🏆`);
 					} else {
-						msg.send({
-							embed: {
-								color: Colors.INFO,
-								description: `**@${client.getName(serverDocument, member)}** doesn't have a rank yet 😟`,
-							},
-						});
+						msg.channel.createMessage(`**@${bot.getName(msg.channel.guild, serverDocument, member)}** doesn't have a rank yet`);
 					}
 				}
-			} else {
-				msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						description: `Rank \`${msg.suffix}\` does not exist on this guild.`,
-						footer: {
-							text: "An admin can create one in the Admin Console ⚡",
-						},
-					},
-				});
+				return;
 			}
+
+			winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+			msg.channel.createMessage(`No such rank \`${suffix}\` exists. An admin can create one, though 😛`);
 		}
 	} else {
-		let noRank = 0;
-		const ranks = serverDocument.config.ranks_list
-			.sort((a, b) => b.max_score - a.max_score)
-			.map(rank => {
-				rank.members = 0;
-				return rank;
-			});
-		msg.guild.members.forEach(member => {
-			const targetMemberDocument = serverDocument.members[member.id];
-			if (!targetMemberDocument) return;
-			const rankDocument = ranks.find(rank => rank._id === targetMemberDocument.rank);
-			if (rankDocument) rankDocument.members++;
-			else if (targetMemberDocument.rank === "No Rank") noRank++;
-		});
-		const fields = ranks.map(rankDocument => ({
-			name: rankDocument._id,
-			value: `${rankDocument.members} ${rankDocument.members === 1 ? "member needs" : "members need"} ${rankDocument.max_score} points total to rank up.`,
-		}));
-		msg.send({
-			embed: {
-				color: Colors.RESPONSE,
-				title: `"${msg.guild.name}"'s ranks 🏆`,
-				fields,
-			},
-		});
+		const info = [];
+		for(let i = serverDocument.config.ranks_list.length - 1; i >= 0; i--) {
+			const rankText = getRankText(serverDocument.config.ranks_list[i]._id);
+			if(rankText) {
+				info.push(`**🏆 ${serverDocument.config.ranks_list[i]._id} (${serverDocument.config.ranks_list[i].max_score})**\n\t${rankText}`);
+			}
+		}
+		bot.sendArray(msg.channel, info);
 	}
 };

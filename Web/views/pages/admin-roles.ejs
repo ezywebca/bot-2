@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-	<title><%= serverData.name %> Roles - GAwesomeBot Admin Console</title>
+	<title><%= serverData.name %> Roles - AwesomeBot Admin Console</title>
 	<% include ../partials/head %>
+
+	<script src="/static/js/form-change-listener.js"></script>
 </head>
-<body onload="GAwesomeUtil.SFS();">
+<body onload="saveFormState();">
 	<% include ../partials/dashboard-header %>
 	<% include ../partials/dashboard-socket-updates %>
 
@@ -18,40 +20,43 @@
 					<h1 class="title">
 						Roles
 					</h1>
-					<article class="message is-primary">
-						<div class="message-body">
-							<div class="content">
-								There are a few super-useful commands in GAwesomeBot to manage roles and their permissions on your server - they are listed below. You'll love being able to use these commands to manage roles without having to use the annoying mobile client.
+					<div class="container">
+						<article class="message is-primary">
+							<div class="message-body">
+								<div class="content">
+									There are a few super-useful commands in AwesomeBot to manage roles and their permissions on your server - they are listed below. You'll love being able to use these commands to manage roles even when you're not on your computer.
+								</div>
 							</div>
-						</div>
-					</article>
-					<form id="form" onsubmit="GAwesomeUtil.submitForm(); return false;">
-						<div class="command-items">
-						<% var commandData = configData.commands.roleinfo; commandData.name = "roleinfo"; commandData.description = pageData.commandDescriptions.roleinfo; commandData.category = pageData.commandCategories.roleinfo; %>
-						<% include ../partials/admin-command-item %>
-						<% commandData = configData.commands.role; commandData.name = "role"; commandData.description = pageData.commandDescriptions.role; commandData.category = pageData.commandCategories.role; %>
-						<% include ../partials/admin-command-item %>
-						</div>
-						<div class="role-options<%= commandData.isEnabled ? '' : ' is-hidden' %>">
-							<div class="field">
+						</article>
+					</div>
+					<br>
+					<div class="container">
+						<form id="form" action="<%= currentPage %>?svrid=<%= serverData.id %>" method="post">
+							<% var commandData = configData.commands.roleinfo;commandData.name = "roleinfo";commandData.description = commandDescriptions.roleinfo;commandData.category = commandCategories.roleinfo; %>
+							<% include ../partials/admin-command-item %>
+							<% var commandData = configData.commands.role;commandData.name = "role";commandData.description = commandDescriptions.role;commandData.category = commandCategories.role; %>
+							<% include ../partials/admin-command-item %>
+							<span class="role-options">
 								Allow users to join these roles with the <code>role</code> command:
 								<p class="control">
-									<% pageData.roleData.forEach(role => { %>
+									<% for(var i=0; i<roleData.length; i++) { %>
 										<label class="checkbox">
-										<input name="custom_roles-<%= role.id %>" type="checkbox"<%= configData.custom_roles.includes(role.id) ? " checked" : "" %>>
-											<span style="color: #<%= role.color %>;" title="<%= role.name %>"><%= role.name %></span>
+										<input name="custom_roles-<%= roleData[i].id %>" type="checkbox"<%= configData.custom_roles.indexOf(roleData[i].id)>-1 ? " checked" : "" %>>
+											<span style="color: #<%= roleData[i].color %>;" title="<%= roleData[i].name %>"><%= roleData[i].name %></span>
 										</label>
 										<br>
-									<% }); %>
+									<% } %>
 								</p>
-							</div>
 								<br>
-						</div>
-						<br>
-						<% var formButtonsUnsaved = false; %>
-						<% include ../partials/form-buttons %>
-						<% include ../partials/form-buttons-bar %>
-					</form>
+							</span>
+							<% var commandData = configData.commands.perms;commandData.name = "perms";commandData.description = commandDescriptions.perms;commandData.category = commandCategories.perms; %>
+							<% include ../partials/admin-command-item %>
+							<br>
+							<% var formButtonsUnsaved = false; %>
+							<% include ../partials/form-buttons %>
+							<% include ../partials/form-buttons-bar %>
+						</form>
+					</div>
 				</div>
 			</div>
 		</div>

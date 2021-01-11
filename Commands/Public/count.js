@@ -1,139 +1,166 @@
-const PaginatedEmbed = require("../../Modules/MessageUtils/PaginatedEmbed");
-
-module.exports = async ({ configJS, Constants: { Colors, Text } }, { serverDocument, serverQueryDocument }, msg, commandData) => {
-	if (msg.suffix) {
-		const createCount = async name => {
-			const prompt = await msg.channel.send({
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		const createCount = name => {
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.PROMPT,
-					description: `I can't find a count called \`${name}\`.\nWould you like to create it? ✏`,
-					footer: {
-						text: "You have 1 minute to respond.",
-					},
-				},
-			});
-			const response = (await msg.channel.awaitMessages(res => res.author.id === msg.author.id, { max: 1, time: 60000 })).first();
-			if (response) {
-				try {
-					await response.delete();
-				} catch (_) {
-					// /shrug
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x9ECDF2,
+					description: `I can't find a count called \`${name}\`. Would you like to create it?`
 				}
-			}
-			if (response && configJS.yesStrings.includes(response.content.toLowerCase().trim())) {
-				serverQueryDocument.push("config.count_data", { _id: name });
-				prompt.edit({
-					embed: {
-						color: Colors.SUCCESS,
-						description: `Started counting **${name}** 🔢`,
-						footer: {
-							text: `Use "${msg.guild.commandPrefix}${commandData.name} ${name} | +1" to increment the count or "${msg.guild.commandPrefix}${commandData.name} ${name} | ." to stop counting.`,
-						},
-					},
+			}).then(() => {
+				bot.awaitMessage(msg.channel.id, msg.author.id, message => {
+					if(config.yes_strings.includes(message.content.toLowerCase().trim())) {
+						serverDocument.config.count_data.push({_id: name});
+						serverDocument.save(err => {
+							if(err) {
+								winston.error("Failed to save server data for creating count", {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+							}
+							msg.channel.createMessage({
+								embed: {
+                                    author: {
+                                        name: bot.user.username,
+                                        icon_url: bot.user.avatarURL,
+                                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                    },
+                                    color: 0x00FF00,
+									description: `Initialized count **${name}** with value \`0\`. Use \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} ${name}|+1\` to increment it.`
+								}
+							});
+						});
+					}
 				});
-			}
+			});
 		};
-		if (msg.suffix.includes("|")) {
-			const params = msg.suffix.split("|").trimAll();
-			if (params.length === 2 && params[0] && (!params[1] || [".", "+1", "++", "-1", "--", "-", "+"].includes(params[1]))) {
-				const countQueryDocument = serverQueryDocument.id("config.count_data", params[0].toLowerCase().trim());
-				const countDocument = countQueryDocument.val;
-				if (countDocument) {
-					let action;
-					switch (params[1]) {
+		if(suffix.indexOf("|") > -1) {
+			const args = suffix.split("|");
+			if(args.length == 2 && args[0].trim() && (!args[1].trim() || [".", "+1", "-1"].includes(args[1].trim()))) {
+				const countDocument = serverDocument.config.count_data.id(args[0].toLowerCase().trim());
+				if(countDocument) {
+					switch(args[1].trim()) {
 						case "":
 						case ".":
-							countQueryDocument.remove();
-							msg.send({
+							countDocument.remove();
+							msg.channel.createMessage({
 								embed: {
-									color: Colors.SUCCESS,
-									title: `Poof! 💨 "${countDocument._id}" is gone!`,
-									description: `\`${countDocument._id}\` ended at \`${countDocument.value}\`.`,
-								},
+                                    author: {
+                                        name: bot.user.username,
+                                        icon_url: bot.user.avatarURL,
+                                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                    },
+                                    color: 0x00FF00,
+									description: `*Poof!* 💨 ${countDocument._id} is gone`
+								}
 							});
 							return;
 						case "+1":
-						case "++":
-						case "+":
-							action = "📈";
-							countQueryDocument.inc("value");
+							countDocument.value++;
 							break;
 						case "-1":
-						case "--":
-						case "-":
-							if (countDocument.value > 0) {
-								action = "📉";
-								countQueryDocument.inc("value", -1);
+							if(countDocument.value > 0) {
+								countDocument.value--;
 								break;
 							} else {
-								msg.send({
+								msg.channel.createMessage({
 									embed: {
-										color: Colors.SOFT_ERR,
-										description: "Sorry, but we're all about positivity here 🙃",
-									},
+                                        author: {
+                                            name: bot.user.username,
+                                            icon_url: bot.user.avatarURL,
+                                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                        },
+                                        color: 0xFF0000,
+										description: "I can't subtract 1 from 0. My creators forgot to teach me about negative numbers 😰"
+									}
 								});
 								return;
 							}
 					}
-					msg.send({
+					msg.channel.createMessage({
 						embed: {
-							color: Colors.SUCCESS,
-							description: `\`${countDocument._id}\` is now at **${countDocument.value}** ${action}`,
-						},
+                            author: {
+                                name: bot.user.username,
+                                icon_url: bot.user.avatarURL,
+                                url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                            },
+                            color: 0x9ECDF2,
+							description: `\`${countDocument._id}\` is now at **${countDocument.value}** 🧀`
+						}
 					});
 				} else {
-					createCount(params[0].toLowerCase());
+					createCount(args[0].toLowerCase().trim());
 				}
 			} else {
-				logger.verbose(`Invalid parameters "${msg.suffix}" provided for ${commandData.name} command`, { svrid: msg.guild.id, chid: msg.channel.id, usrid: msg.author.id });
-				msg.sendInvalidUsage(commandData);
+				winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+				msg.channel.createMessage({
+					embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+						description: `me = confused 🕵`
+					}
+				});
 			}
 		} else {
-			const countDocument = serverDocument.config.count_data.id(msg.suffix.toLowerCase().trim());
-			if (countDocument) {
-				msg.send({
+			const countDocument = serverDocument.config.count_data.id(suffix.toLowerCase());
+			if(countDocument) {
+				msg.channel.createMessage({
 					embed: {
-						color: Colors.INFO,
-						description: `\`${countDocument._id}\` is currently at **${countDocument.value}** 📊`,
-						footer: {
-							text: `Use "${msg.guild.commandPrefix}${commandData.name} ${countDocument._id} | +1" to increment the count or "${msg.guild.commandPrefix}${commandData.name} ${countDocument._id} | -1" to subtract from it.`,
-						},
-					},
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0x00FF00,
+						title: `💯 **${countDocument._id}:**`,
+						description: `${countDocument.value}`
+					}
 				});
 			} else {
-				await createCount(msg.suffix.toLowerCase().trim());
+				createCount(suffix.toLowerCase());
 			}
 		}
 	} else {
-		const info = serverDocument.config.count_data.map(countDocument => countDocument._id).sort();
-		if (info.length) {
-			const chunks = info.map(count => {
-				const countDocument = serverDocument.config.count_data.id(count);
-				return [
-					`» **${countDocument._id}** «`,
-					`\tCurrently at **${countDocument.value}** 📊`,
-				].join("\n");
-			}).chunk(10);
-			const descriptions = [];
-			for (const chunk of chunks) {
-				descriptions.push(chunk.join("\n\n"));
-			}
-			const menu = new PaginatedEmbed(msg, {
-				title: `There ${info.length === 1 ? "is" : "are"} ${info.length} count${info.length === 1 ? "" : "s"} on "${msg.guild}" 📋`,
-				color: Colors.INFO,
-			}, {
-				descriptions,
+		const info = serverDocument.config.count_data.map(countDocument => {
+			return `${countDocument._id}: ${countDocument.value}`;
+		}).sort();
+		let embed_fields = [];
+		serverDocument.config.count_data.map(countDocument => {
+			embed_fields.push({
+				name: `${countDocument._id}:`,
+				value: `${countDocument.value}`,
+				inline: true
 			});
-			await menu.init();
-		} else {
-			msg.send({
+		}).sort();
+		if(info.length > 0) {
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.INFO,
-					description: `No one on this server is counting anything 📒`,
-					footer: {
-						text: `Use "${msg.guild.commandPrefix}${commandData.name} <name>" to start tallying something`,
-					},
-				},
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x00FF00,
+					description: `**${info.length} count${info.length==1 ? "" : "s"} on this server: 🔢**`,
+					fields: embed_fields
+				}
+			});
+		} else {
+			msg.channel.createMessage({
+				embed: {
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x9ECDF2,
+					description: `No one on this server is counting anything. Use \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} <name>\` to start tallying something. 🐶`
+				}
 			});
 		}
 	}

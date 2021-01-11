@@ -1,8 +1,3 @@
-Configurations/config.json
-Configurations/config.js
-Configurations/auth.js
-node_modules/
-.idea/
-package-cache*.json
-
-Temp/*.json
+Configuration/config.json
+Configuration/auth.json
+Extensions/

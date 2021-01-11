@@ -1,29 +1,12 @@
-module.exports = async ({ Constants: { Colors } }, { serverQueryDocument }, msg, commandData) => {
-	if (msg.suffix) {
-		let { suffix } = msg;
-		if (msg.suffix.startsWith(`"`) && msg.suffix.endsWith(`"`)) suffix = msg.suffix.slice(1, msg.suffix.length - 1);
-		if (suffix.length > 25) {
-			return msg.send({
-				embed: {
-					color: Colors.INVALID,
-					description: `That prefix is too long, don't ya think? 🐳`,
-				},
-			});
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix) => {
+	if(suffix) {
+		if(suffix.length > 10) {
+			msg.channel.createMessage(`\`${suffix}\` is too long, don't ya think? 🐳`);
+		} else {
+			serverDocument.config.command_prefix = suffix;
+			msg.channel.createMessage(`🐬 OK, the new prefix for this server is \`${suffix}\``);
 		}
-		serverQueryDocument.set("config.command_prefix", suffix);
-		return msg.send({
-			embed: {
-				color: Colors.SUCCESS,
-				title: `Got it! 🐬`,
-				description: `The new prefix for this server is \`${suffix}\``,
-			},
-		});
+	} else {
+		msg.channel.createMessage(`I am sure that you already know this... The command prefix for this server is \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}\``);
 	}
-	return msg.send({
-		embed: {
-			color: Colors.INFO,
-			title: "I'm sure you already know this...",
-			description: `The command prefix in this server is \`${msg.guild.commandPrefix}\``,
-		},
-	});
 };

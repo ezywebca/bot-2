@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-	<title>Donate to GAwesomeBot</title>
+	<title>Donate to AwesomeBot</title>
 	<% include ../partials/head %>
 
 	<script>
@@ -18,7 +18,7 @@
 	<script>
 	localStorage.setItem("donate", null);
 	</script>
-	<section id="header" class="main-header-section hero is-primary is-medium is-bold">
+	<section id="header" class="hero is-primary is-medium is-bold" style="background: url('/header-image');background-size: cover;">
 		<div class="hero-head">
 			<% include ../partials/header %>
 		</div>
@@ -29,40 +29,30 @@
                         <h2 class="title is-2 has-text-centered">
                             <strong>Thank you</strong> for your support!
                         </h2>
-						<% if (configData.charities.length > 0) { %>
+						<% if(charities.length>0) { %>
 	                        <h5 class="subtitle is-5">
-								<%- configData.donateSubtitle %>
+	                            The AwesomeBot team doesn't accept donations (<a href="/wiki/FAQs#donations">here's why</a>). Instead, we&#39;d prefer that you donate to one or more of the following charities:
 	                        </h5>
-							<% configData.charities.forEach(charity => { %>
-		                        <a class="level is-mobile arrow-link" href="<%= charity.donate_url %>">
-		                            <div class="level-left">
-										<div class="level-item">
-											<img class="image is-32x32" src="<%= charity.icon_url %>">
-										</div>
-										<div class="level-item">
-											<p class="title is-3">
-                                                <%= charity.name %>
-                                                <% if (charity.country) { %>
-												<span class="tag is-rounded is-light"><%= charity.country %></span>
-                                                <% } %>
-											</p>
-										</div>
+							<% for(var i=0; i<charities.length; i++) { %>
+		                        <a class="media" href="<%= charities[i].donate_url %>">
+		                            <div class="media-left">
+		                                <img class="image is-32x32" src="<%= charities[i].icon_url %>">
 		                            </div>
-		                            <div class="level-right">
-										<div class="level-item">
-		                                <span class="icon is-primary is-medium">
-		                                    <i class="fa fa-chevron-right fa-2x"></i>
+		                            <div class="media-content">
+		                                <p class="title is-3">
+											<%= charities[i].name %>
+											<% if(charities[i].country) { %>
+												<span class="tag is-light"><%= charities[i].country %></span>
+											<% } %>
+										</p>
+		                            </div>
+		                            <div class="media-right">
+		                                <span class="icon is-medium">
+		                                    <i class="fa fa-chevron-right"></i>
 		                                </span>
-										</div>
 		                            </div>
 		                        </a>
-							<% }); %>
-						<% } %>
-						<% if (officialMode) { %>
-							<h5 class="subtitle is-5">
-								By viewing ads, you are supporting us develop and maintain GAB publicly. However, we understand ads can be annoying and ruin the viewing experience. While we attempt to keep our ads as user-friendly as possible, you can disable ads here to prevent seeing them in this browser or enable them to continue supporting us.
-							</h5>
-							<a class="button is-medium is-fullwidth is-outlined <%= adsense.isEnabled ? "is-danger" : "is-success"%>" onclick="GAwesomeUtil.toggleAds('<%= adsense.isEnabled %>');"><%= adsense.isEnabled ? "Disable" : "Enable" %> advertisements and sponsored content</a>
+							<% } %>
 						<% } %>
                     </div>
                 </div>
@@ -76,24 +66,12 @@
                         <i class="fa fa-frown-o"></i>
                     </span>
                 </a>
-                <br>
+                <br><br>
 			</div>
 		</div>
-		<br>
 	</section>
 
 	<% include ../partials/footer %>
 	<% include ../partials/scroll-top-button %>
-	<!-- Because joke bot wars are fun, *and jokes* -->
-	<script>
-			$('#auttaja-a').on('mouseenter', () => {
-				$('#auttaja-a a').css('visibility', 'visible');
-			}).on('mouseleave', () => {
-				$('#auttaja-a a').css('visibility', 'hidden');
-			})
-			$('#auttaja-a a').click(() => {
-				$('#auttaja').toggle();
-			})
-	</script>
 </body>
 </html>

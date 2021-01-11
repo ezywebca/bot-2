@@ -1,50 +1,41 @@
-/* eslint node/exports-style: ["error", "exports"] */
-const { MongoClient } = require("mongodb");
+const mongoose = require("mongoose");
+mongoose.Promise = global.Promise;
+const findOrCreate = require("mongoose-findorcreate");
+const serverSchema = require("./Schemas/serverSchema.js");
+const userSchema = require("./Schemas/userSchema.js");
+userSchema.plugin(findOrCreate);
+const modulesSchema = require("./Schemas/modulesSchema.js");
+modulesSchema.index({
+	name: "text",
+	description: "text"
+});
+const blogSchema = require("./Schemas/blogSchema.js");
+const wikiSchema = require("./Schemas/wikiSchema");
 
-const Model = require("./Model");
-const { addToGlobal } = require("../Modules/Utils/GlobalDefines.js");
+// Connect to and setup database
+module.exports = {
+	initialize: (url, callback) => {
+		mongoose.connect(url, {
+			autoReconnect: true,
+			connectTimeoutMS: 30000,
+			socketTimeoutMS: 30000,
+			keepAlive: 120,
+			poolSize: 100
+		});
 
-/**
- * Prepares models, creates and connects a client to MongoDB
- * @param {object} config A set of MongoDB config options
- * @returns {Promise<Object>}
- */
-exports.initialize = async config => {
-	const mongoClient = new MongoClient(config.URL, config.options);
-	await mongoClient.connect();
-	const db = mongoClient.db(config.db);
-	const [
-		Servers,
-		Users,
-		Gallery,
-		Blog,
-		Wiki,
-		Traffic,
-	] = [
-		new Model(db, "servers", require("./Schemas/serverSchema")),
-		new Model(db, "users", require("./Schemas/userSchema")),
-		new Model(db, "gallery", require("./Schemas/gallerySchema")),
-		new Model(db, "blog", require("./Schemas/blogSchema")),
-		new Model(db, "wiki", require("./Schemas/wikiSchema")),
-		new Model(db, "traffic", require("./Schemas/trafficSchema")),
-	];
-	addToGlobal("Servers", Servers);
-	addToGlobal("Users", Users);
-	addToGlobal("Gallery", Gallery);
-	addToGlobal("Blog", Blog);
-	addToGlobal("Wiki", Wiki);
-	addToGlobal("Client", db);
-	addToGlobal("Database", {
-		Servers, servers: Servers,
-		Users, users: Users,
-		Gallery, gallery: Gallery,
-		Blog, blog: Blog,
-		Wiki, wiki: Wiki,
-		Traffic, traffic: Traffic,
-		client: db,
-		mongoClient,
-	});
-	return global.Database.client;
+		mongoose.model("servers", serverSchema);
+		mongoose.model("users", userSchema);
+		mongoose.model("gallery", modulesSchema);
+		mongoose.model("blog", blogSchema);
+		mongoose.model("wiki", wikiSchema);
+
+		mongoose.connection.on("error", callback);
+		mongoose.connection.once("open", callback);
+	},
+	get: () => {
+		return mongoose.models;
+	},
+	getConnection: () => {
+		return mongoose.connection;
+	}
 };
-
-exports.get = exports.getConnection = () => global.Database;

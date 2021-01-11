@@ -1,53 +1,31 @@
-const PaginatedEmbed = require("../../Modules/MessageUtils/PaginatedEmbed");
-const isStreaming = require("../../Modules/Utils/StreamerUtils");
+const isStreaming = require("./../../Modules/StreamerUtils.js");
 
-module.exports = async ({ Constants: { Colors, Text }, client }, { serverDocument }, msg, commandData) => {
-	if (serverDocument.config.streamers_data.length) {
-		const descriptions = [];
-		const thumbnails = [];
-		const titles = [];
-		const footers = [];
-		const colors = [];
-		await Promise.all(serverDocument.config.streamers_data.map(async streamer => {
-			const streamerData = await isStreaming(streamer.type, streamer._id);
-			if (!streamerData) return;
-			descriptions.push(`**${streamerData.name}** is streaming **${streamerData.game}**, [watch their stream now](${streamerData.url})!`);
-			thumbnails.push(streamerData.preview);
-			titles.push(`${streamerData.name} is live!`);
-			footers.push(`${streamerData.type} Streamer • `);
-			colors.push(streamerData.type === "YouTube" ? Colors.YOUTUBE : Colors.TWITCH);
-		}));
-		if (descriptions.length) {
-			await new PaginatedEmbed(msg, {
-				footer: "{footer}Streamer {currentPage} out of {totalPages}",
-			}, {
-				descriptions,
-				thumbnails,
-				titles,
-				footers,
-				colors,
-			}).init();
-		} else if (serverDocument.config.streamers_data.length === 1) {
-			msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					description: "The 1 streamer added to this server isn't live right now. 😞",
-				},
-			});
-		} else {
-			msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					description: `None of the ${serverDocument.config.streamers_data.length} streamers added to this server are live right now. 😞`,
-				},
-			});
-		}
-	} else {
-		msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: "I'm not tracking any streamers yet!\nA Server Admin can add a streamer to track on the dashboard! 🌐",
-			},
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg) => {
+	if(serverDocument.config.streamers_data.length > 0) {
+		const checkStreamer = (i, info, callback) => {
+			if(i >= serverDocument.config.streamers_data.length) {
+				callback(info);
+			} else {
+				isStreaming(serverDocument.config.streamers_data[i].type, serverDocument.config.streamers_data[i]._id, data => {
+					if(data) {
+						info.push(`🎮 **${data.name}** is live on ${data.type}: ${data.game}\n${data.url}`);
+					}
+					checkStreamer(++i, info, callback);
+				});
+			}
+		};
+		checkStreamer(0, [], info => {
+			if(info.length > 0) {
+				bot.sendArray(msg.channel, info);
+			} else {
+				if(serverDocument.config.streamers_data.length === 1) {
+					msg.channel.createMessage("The 1 streamer added to this server isn't live right now. 😞");
+				} else {
+					msg.channel.createMessage(`None of the ${serverDocument.config.streamers_data.length} streamers added to this server are live right now. 😞`);
+				}
+			}
 		});
+	} else {
+		msg.channel.createMessage("I'm not tracking any Twitch or YouTube Gaming streams for this server. You can add them online in the admin console. 🌐");
 	}
 };

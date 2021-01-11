@@ -1,12 +1,17 @@
-module.exports = async ({ client, configJS, Constants: { Colors } }, msg, commandData) => {
-	const info = client.getPMCommandList()
-		.map(command => `${command} ${client.getPMCommandMetadata(command).usage}`).sort();
-	msg.reply({
+module.exports = (bot, db, config, winston, userDocument, msg) => {
+	const info = bot.getPMCommandList().map(command => {
+		return `${command} ${bot.getPMCommandMetadata(command).usage}`;
+	}).sort();
+	msg.channel.createMessage({
 		embed: {
-			color: Colors.BLUE,
-			title: `Here are the PM commands you can use ~~--~~ Learn more by clicking here 📘`,
-			url: `${configJS.hostingURL}wiki`,
-			description: `\`\`\`${info.join("\n")}\`\`\``,
-		},
+			author: {
+				name: bot.user.username,
+				icon_url: bot.user.avatarURL,
+				url: "https://github.com/GilbertGobbels/GAwesomeBot"
+			},
+			color: 0x9ECDF2,
+			title: "You can use these commands in PM with me: 🍪",
+			description: `\`\`\`${info.join("\n")}\`\`\`Learn more [here](${config.hosting_url}wiki) 📘`
+		}
 	});
 };

@@ -1,105 +1,62 @@
+const checkFiltered = require("./../../Modules/FilterChecker.js");
 const moment = require("moment");
-const { get } = require("snekfetch");
-const PaginatedEmbed = require("../../Modules/MessageUtils/PaginatedEmbed");
+const unirest = require("unirest");
 
-module.exports = async ({ Constants: { Colors, Text, APIs, EmptySpace } }, documents, msg, commandData) => {
-	let subreddit = msg.suffix;
-	if (!subreddit) {
-		subreddit = "all";
-	} else {
-		subreddit = subreddit.replace(/^\/?r\//, "");
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix) => {
+	if(suffix.startsWith("r/")) {
+		suffix = suffix.slice(2);
 	}
-	const { body, statusCode, statusText, headers } = await get(APIs.REDDIT(subreddit), { followRedirects: false }).catch(e => e);
-	if (body) {
-		if (!body.data) {
-			let description;
-			switch (body.reason) {
-				case "banned":
-					description = "This subreddit has been banned by the Reddit Admins 🚫";
-					break;
-				case "private":
-					description = "This subreddit has been set to private by its moderators 🤐";
-					break;
-				default:
-					if (body.message === "Forbidden" && body.error === 403) {
-						description = "This subreddit has been quarantined by the Reddit Admins 😱";
-					} else if (statusCode === 302) {
-						description = "This subreddit does not seem to exist.";
-					} else {
-						logger.debug(`Failed to fetch Reddit results`, { svrid: msg.guild.id, chid: msg.channel.id, usrid: msg.author.id, statusCode, err: statusText });
-						description = "There was an unknown error while fetching your results.";
+	if(suffix.startsWith("/r/")) {
+		suffix = suffix.slice(3);
+	}
+	let query = "all";
+	let num = serverDocument.config.command_fetch_properties.default_count;
+	if(suffix) {
+		if(!isNaN(suffix)) {
+			num = parseInt(suffix);
+		} else {
+			query = suffix.substring(0, suffix.lastIndexOf(" "));
+			num = suffix.substring(suffix.lastIndexOf(" ")+1);
+
+			if(!query || isNaN(num)) {
+				query = suffix;
+				num = serverDocument.config.command_fetch_properties.default_count;
+			}
+			if(num < 1 || num > serverDocument.config.command_fetch_properties.max_count) {
+				num = serverDocument.config.command_fetch_properties.default_count;
+			} else {
+				num = parseInt(num);
+			}
+		}
+	}
+	unirest.get(`https://www.reddit.com/r/${encodeURIComponent(query)}/.json`).header("Accept", "application/json").end(res => {
+		if(res.status == 200 && res.body && res.body.data && res.body.data.children && res.body.data.children.length > 0) {
+			const data = res.body.data.children;
+			const info = [];
+			for(let i = 0; i < Math.min(num, data.length); i++) {
+				if(data && data[i].data) {
+					if(data[i].data.over_18 && bot.getUserBotAdmin(msg.channel.guild, serverDocument, msg.member)<1 && checkFiltered(serverDocument, msg.channel, null, true, false, true)) {
+						// Delete offending message if necessary
+						if(serverDocument.config.moderation.filters.nsfw_filter.delete_message) {
+							msg.delete().then().catch(err => {
+								winston.error(`Failed to delete NSFW command message from member '${msg.author.username}' in channel '${msg.channel.name}' on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+							});
+						}
+						// Handle this as a violation
+						bot.handleViolation(winston, msg.channel.guild, serverDocument, msg.channel, msg.member, userDocument, memberDocument, `You tried to fetch NSFW content in #${msg.channel} on ${msg.channel.guild.name}`, `**@${bot.getName(msg.channel.guild, serverDocument, msg.member, true)}** is trying to fetch NSFW content (Reddit: /r/${query}) in #${msg.channel.name} on ${msg.channel.guild.name}`, `NSFW filter violation (Reddit: /r/${query}) in #${msg.channel.name}`, serverDocument.config.moderation.filters.nsfw_filter.action, serverDocument.config.moderation.filters.nsfw_filter.violator_role_id);
+						return;
+					} else if(!data[i].data.stickied) {
+						info.push(`**${data[i].data.title}**\n${data[i].data.score} point${data[i].data.score==1 ? "" : "s"}\t${data[i].data.author}\t${query.toLowerCase()=="all" ? (`/r/${data[i].data.subreddit}\t`) : ""}${moment(data[i].data.created_utc*1000).fromNow()}\t${data[i].data.num_comments} comment${data[i].data.num_comments==1 ? "" : "s"}\n` + `<https://redd.it/${data[i].data.id}>`);
 					}
-					break;
+				} else {
+					data.splice(i, 1);
+					i--;
+				}
 			}
-			return msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					title: "What's that? 🤔",
-					description,
-				},
-			});
-		} else if (!body.data.children.length) {
-			return msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					title: "Nothing to see here!",
-					description: "There are no posts in this subreddit yet.",
-				},
-			});
+			bot.sendArray(msg.channel, info);
+		} else {
+			winston.warn(`No Reddit data found for '${query}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+			msg.channel.createMessage(`Surprisingly, I couldn't find anything in /r/${query} on Reddit 📛`);
 		}
-
-		const descriptions = [];
-		const fields = [];
-		const thumbnails = [];
-		let nsfwFiltered = 0;
-		body.data.children.forEach(({ data }) => {
-			if (!msg.channel.nsfw && data.over_18) {
-				nsfwFiltered++;
-				return;
-			}
-			const description = `**__${data.title}__**${data.gilded ? ` ⭐**${data.gilded}**` : ""}${data.stickied ? " 📌" : ""}\n\n${data.selftext || data.url}`;
-			descriptions.push(description.length > 2040 ? `${description.substring(0, 2040)}...` : description);
-			thumbnails.push(!["default", "self"].includes(data.thumbnail) ? data.thumbnail : null);
-			const meta = [
-				`Submitted ${moment.unix(data.created_utc).fromNow()} by [${data.author}](https://www.reddit.com/user/${data.author})${data.subreddit !== subreddit ? ` to [r/${data.subreddit}](https://www.reddit.com/r/${data.subreddit})` : ""}`,
-				`With ${data.num_comments} comments and ${data.score} points so far`,
-				`[**permalink**](https://www.reddit.com${data.permalink})`,
-			];
-			fields.push([
-				{
-					name: EmptySpace,
-					value: meta.join("\n"),
-					inline: false,
-				},
-			]);
-		});
-
-		if (!descriptions.length) {
-			return msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					title: "Hold on a second! 🛑",
-					description: "All results were filtered for being marked NSFW. If you want to see them go to a NSFW channel or ask an Admin to make this channel NSFW.",
-				},
-			});
-		}
-		await new PaginatedEmbed(msg, {
-			color: Colors.RESPONSE,
-			title: `Submission {currentPage} out of {totalPages} in r/${subreddit}`,
-			footer: nsfwFiltered ? `${nsfwFiltered} post${nsfwFiltered > 1 ? "s were" : " was"} filtered for being marked NSFW as this channel is not marked as such.` : "",
-		}, {
-			descriptions,
-			fields,
-			thumbnails,
-		}).init();
-	} else {
-		logger.debug(`Failed to fetch Reddit results`, { svrid: msg.guild.id, chid: msg.channel.id, usrid: msg.author.id, statusCode, err: statusText });
-		msg.send({
-			embed: {
-				color: Colors.ERROR,
-				title: Text.ERROR_TITLE(),
-				description: `I was unable to fetch results from Reddit!`,
-			},
-		});
-	}
+	});
 };

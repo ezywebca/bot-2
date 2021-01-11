@@ -1,53 +1,61 @@
-const { get } = require("snekfetch");
-const auth = require("../../Configurations/auth");
+const weather = require("weather-js");
 
-module.exports = async ({ Constants: { APIs, Colors, Text }, client }, documents, msg, commandData) => {
-	if (!msg.suffix) {
-		await msg.sendInvalidUsage(commandData, "It's always raining bytes in robot land 🌞", "You must supply a city to lookup!");
-		return;
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	let unit = "C";
+	if(userDocument.weatherunit && userDocument.weatherunit == "Fahrenheit") unit = "F";
+	if([" F", " C"].indexOf(suffix.toUpperCase().substring(suffix.length-2))>-1) {
+		unit = suffix.charAt(suffix.length-1).toUpperCase().toString();
+		suffix = suffix.substring(0, suffix.length-2);
 	}
-	if (!auth.tokens.openWeatherMap) {
-		await msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: "The weather command is not available on this bot. 🌧️",
-			},
-		});
-	} else {
-		const { body, statusCode } = await get(APIs.WEATHER(auth.tokens.openWeatherMap, msg.suffix)).catch(err => err);
-		if (statusCode === 200) {
-			const fields = [{
-				name: "🌡️ Temperature",
-				value: `🔺 Max: **${body.main.temp_max}C°**\n➖ Average: **${body.main.temp}C°**\n🔻 Min: **${body.main.temp_min}C°**`,
-				inline: true,
-			}, {
-				name: "💧 Humidity",
-				value: `**${body.main.humidity}%**`,
-				inline: true,
-			}];
-			if (body.clouds) fields.push({ name: "☁️ Clouds", value: `**${body.clouds.all}%** cloudiness`, inline: true });
-			if (body.rain) fields.push({ name: "🌧️ Rain", value: `**${body.rain["3h"] || body.rain["1h"] || 0}mm** in the last 3 hours`, inline: true });
-			if (body.snow) fields.push({ name: "🌨️ Snow", value: `**${body.snow["3h"] || body.snow["1h"] || 0}mm** in the last 3 hours`, inline: true });
-			if (body.wind && body.wind.speed) fields.push({ name: "💨 Wind", value: `**${body.wind.speed}** meters per second`, inline: true });
-			const description = body.weather[0].description.split(" ").map(word => `${word.charAt(0).toUpperCase()}${word.substring(1)}`).join(" ");
-			await msg.send({
-				embed: {
-					color: Colors.RESPONSE,
-					title: `Current weather for ${body.name}, ${body.sys.country}`,
-					description: `**${description}**`,
-					fields,
-					thumbnail: {
-						url: `https://openweathermap.org/img/w/${body.weather[0].icon}.png`,
-					},
-				},
-			});
+
+	const getWeather = (location, member, unit) => {
+		if(location) {
+			try {
+				weather.find({search: location, degreeType: unit}, (err, data) => {
+					if(err) {
+						winston.warn(`No weather data found for '${location}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+						msg.channel.createMessage(`${msg.author.mention} I can't find weather info for ${location} 🌇`);
+					} else {
+						data = data[0];
+						msg.channel.createMessage(`**${member ? (`Weather for @${bot.getName(msg.channel.guild, serverDocument, member)}`) : data.location.name} right now:**\n${data.current.temperature}°${unit} ${data.current.skytext}, feels like ${data.current.feelslike}°, ${data.current.winddisplay} wind\n**Forecast for tomorrow:**\nHigh: ${data.forecast[1].high}°, low: ${data.forecast[1].low}° ${data.forecast[1].skytextday} with ${data.forecast[1].precip}% chance precip.`);
+					}
+				});
+			} catch(err) {
+				winston.error("Failed to get weather data", {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+				msg.channel.createMessage("Idk why this is broken tbh 😭");
+			}
 		} else {
-			await msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					description: `There's a thunderstorm in the server room! ⛈️`,
-				},
-			});
+			winston.warn(`Parameters not provided for '${commandData.name}' command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+			msg.channel.createMessage(`${msg.author.mention} I don't have a default location set for you. PM me \`profile location|<your city>\` to set one 🌞`);
 		}
+	};
+
+	const locateUser = (usrid, callback) => {
+		db.users.findOne({_id: usrid}, (err, userDocument) => {
+			if(!err && userDocument && userDocument.location) {
+				callback(userDocument.location);
+			} else {
+				callback();
+			}
+		});
+	};
+	
+	if(suffix) {
+		if(suffix.indexOf("<@")==0) {
+			const member = bot.memberSearch(suffix, msg.channel.guild);
+			if(member) {
+				locateUser(member.id, location => {
+					getWeather(location || suffix, member, unit);
+				});
+				return;
+			}
+		} else if(suffix.indexOf("in ")==0) {
+			suffix = suffix.slice(3);
+		}
+		getWeather(suffix, null, unit);
+	} else {
+		locateUser(msg.author.id, location => {
+			getWeather(location, msg.member, unit);
+		});
 	}
 };

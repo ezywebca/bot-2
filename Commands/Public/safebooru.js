@@ -1,74 +1,37 @@
-const ArgParser = require("../../Modules/MessageUtils/Parser");
-const PaginatedEmbed = require("../../Modules/MessageUtils/PaginatedEmbed");
-const fetch = require("chainfetch");
+const unirest = require("unirest");
 
-module.exports = async ({ Constants: { Colors, Text, APIs, UserAgent, NSFWEmbed }, client }, { serverDocument }, msg, commandData) => {
-	if (!msg.channel.nsfw) {
-		return msg.send(NSFWEmbed);
-	}
-	if (!msg.suffix) {
-		return msg.sendInvalidUsage(commandData, "You gotta give me somethin' to search for!");
-	}
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		let query = suffix.substring(0, suffix.lastIndexOf(" "));
+		let num = suffix.substring(suffix.lastIndexOf(" ")+1);
 
-	let num;
-	const args = ArgParser.parseQuoteArgs(msg.suffix, msg.suffix.includes("|") ? "|" : " ");
-	if (!isNaN(args[args.length - 1])) num = args.splice(-1);
-	else num = serverDocument.config.command_fetch_properties.default_count;
-	const query = args.join(" ");
+		if(!query || isNaN(num)) {
+			query = suffix;
+			num = serverDocument.config.command_fetch_properties.default_count;
+		}
+		if(num<1 || num>serverDocument.config.command_fetch_properties.max_count) {
+			num = serverDocument.config.command_fetch_properties.default_count;
+		} else {
+			num = parseInt(num);
+		}
 
-	if (!num || num > serverDocument.config.command_fetch_properties.max_count) num = serverDocument.config.command_fetch_properties.default_count;
-	else num = parseInt(num);
-
-	const m = await msg.send(Text.THIRD_PARTY_FETCH("We're fetching the requested images"));
-
-	const body = await fetch.get(APIs.SAFEBOORU(query, num)).set({
-		Accepts: "application/json",
-		"User-Agent": UserAgent,
-	}).onlyBody()
-		.catch(() => null);
-
-	if (body && body.length) {
-		const descriptions = [], fields = [], images = [];
-		body.forEach(post => {
-			descriptions.push(`Uploaded by ${post.uploader_name}\nClick [here](https://safebooru.donmai.us/posts/${post.id}) to see the full post.${!post.description || post.description === "" ? "" :
-				`\`\`\`css\n${post.description.substring(0, 1500)
-					.replace(/\[\/?(?:b|u|i)\]/g, "")}${post.description.length > 1500 ? `...\`\`\` Read more [here](https://safebooru.donmai.us/posts/${post.id})` : "```"}`}`);
-			images.push(post.file_url);
-			post.tag_string = post.tag_string.replace(/\*/g, "\\*");
-			fields.push([
-				{
-					name: "Tags 🏷",
-					value: post.tag_string.length > 1024 ? `${post.tag_string.substring(0, 1021)}...` : post.tag_string,
-					inline: true,
-				},
-				{
-					name: "Score ⭐",
-					value: post.score,
-					inline: true,
-				},
-				{
-					name: "Rating 🌡",
-					value: post.rating.toUpperCase(),
-					inline: true,
-				},
-			]);
+		unirest.get(`http://safebooru.donmai.us/posts.json?page=0&tags=${encodeURIComponent(query)}&limit=${num}`).headers({
+			"Accept": "application/json",
+			"User-Agent": "Unirest Node.js"
+		}).end(res => {
+			if(res.status==200) {
+				const info = [];
+				for(let i=0; i<res.body.length; i++) {
+					info.push(`${res.body[i].description ? (`\`\`\`${res.body[i].description}\`\`\``) : ""}**Author:** ${res.body[i].uploader_name}\n**Rating:** ${res.body[i].rating.toUpperCase()}\n**Score:** ${res.body[i].score}\n**Favorites:** ${res.body[i].fav_count}\nhttp://safebooru.donmai.us${res.body[i].file_url}`);
+				}
+				bot.sendArray(msg.channel, info);
+			} else {
+				winston.warn(`No ${commandData.name} results found for '${query}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+				msg.channel.createMessage("I'm so sorry, Safebooru has failed me 😥");
+			}
 		});
-		const menu = new PaginatedEmbed(msg, {
-			color: Colors.RESPONSE,
-			footer: `Result {currentPage} out of {totalPages} results`,
-		}, {
-			descriptions,
-			fields,
-			images,
-		});
-		await m.delete().catch();
-		await menu.init();
 	} else {
-		msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: "Even Safebooru couldn't find an image! 😥",
-			},
-		});
+		winston.warn(`Parameters not provided for '${commandData.name}' command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage(`${msg.author.mention} You gotta give me somethin' to search for!`);
 	}
 };

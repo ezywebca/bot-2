@@ -1,41 +1,32 @@
 const moment = require("moment");
 const parseDuration = require("parse-duration");
 
-module.exports = async ({ Constants: { Colors }, client }, { serverDocument, serverQueryDocument, channelQueryDocument }, msg, commandData) => {
-	let responseString = "";
-	if (msg.suffix && msg.suffix.toLowerCase().trim() === "all") {
-		responseString = " in all channels";
-		Object.values(serverDocument.channels).forEach(channelDocument => {
-			serverQueryDocument.set(`channels.${channelDocument._id}.bot_enabled`, false);
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	let str = "";
+	if(suffix.toLowerCase() == "all") {
+		str = " in all channels";
+		serverDocument.channels.forEach(targetChannelDocument => {
+			targetChannelDocument.bot_enabled = false;
 		});
-	} else if (msg.suffix && parseDuration(msg.suffix) > 0) {
-		const time = parseDuration(msg.suffix);
-		if (time > 3600000) {
-			return msg.send({
-				embed: {
-					color: Colors.INVALID,
-					description: "I can't miss you guys for that long!",
-					footer: {
-						text: "Try a shorter duration or no duration at all for an indefinitely long period",
-					},
-				},
-			});
+	} else if(parseDuration(suffix) > 0) {
+		const time = parseDuration(suffix);
+		if(time > 3600000) {
+			winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+			msg.channel.createMessage(`${msg.author.mention} Too big.`);
+			return;
 		}
-		responseString = ` for ${moment.duration(time).humanize()}`;
-		channelQueryDocument.set("bot_enabled", false);
-		client.setTimeout(() => {
-			channelQueryDocument.set("bot_enabled", true);
-			serverDocument.save().catch(err => {
-				logger.warn("Failed to save server data for automatically starting the bot in a channel.", { svrid: msg.guild.id }, err);
+		str = ` for ${moment.duration(time).humanize()}`;
+		channelDocument.bot_enabled = false;
+		setTimeout(() => {
+			channelDocument.bot_enabled = true;
+			serverDocument.save(err => {
+				if(err) {
+					winston.error("Failed to save server data for bot enabled", {svrid: msg.channel.guild._id}, err);
+				}
 			});
 		}, time);
 	} else {
-		channelQueryDocument.set("bot_enabled", false);
+		channelDocument.bot_enabled = false;
 	}
-	msg.send({
-		embed: {
-			color: Colors.SUCCESS,
-			description: `Ok, I'll be quiet${responseString} 😶`,
-		},
-	});
+	msg.channel.createMessage(`Ok, I'll shut up${str} 😶`);
 };

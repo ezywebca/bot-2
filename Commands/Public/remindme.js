@@ -1,39 +1,18 @@
-const remind = require("../../Modules/MessageUtils/ReminderParser");
+const remind = require("./../../Modules/ReminderParser.js");
 const moment = require("moment");
 
-module.exports = async ({ client, Constants: { Colors, Text } }, { userDocument }, msg, commandData) => {
-	if (msg.suffix) {
-		const result = await remind(client, userDocument, userDocument.query, msg.suffix);
-		if (result === "ERR") {
-			msg.sendInvalidUsage(commandData);
-		} else {
-			msg.send({
-				embed: {
-					color: Colors.SUCCESS,
-					description: `Alright, I'll remind you ${moment.duration(result).humanize(true)} ⏰`,
-				},
-			});
-		}
-	} else if (userDocument.reminders.length === 0) {
-		msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				title: "No reminders set 😴",
-				description: `You don't have any reminders set yet; use \`${commandData.name} ${commandData.usage}\` to set one.`,
-			},
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		remind(bot, winston, userDocument, suffix, (err, time) => {
+			if(!err && time) {
+				msg.channel.createMessage(`Alright, I'll remind ${msg.author.mention} via PM ${moment.duration(time).humanize(true)}`);
+			} else {
+				winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+				msg.channel.createMessage(`${msg.author.mention} Make sure you're using \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} ${commandData.usage}\`. I couldn't understand what you said last time`);
+			}
 		});
 	} else {
-		const fields = userDocument.reminders.map(reminderDocument => ({
-			name: `__${reminderDocument.name}__`,
-			value: `${moment(reminderDocument.expiry_timestamp).fromNow()}`,
-			inline: true,
-		}));
-		msg.send({
-			embed: {
-				color: Colors.INFO,
-				title: `Your reminders:`,
-				fields: fields.splice(0, 25),
-			},
-		});
+		winston.warn(`Parameters not provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage(`${msg.author.mention} I need something to remind you of 😣. Use \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} ${commandData.usage}\``);
 	}
 };

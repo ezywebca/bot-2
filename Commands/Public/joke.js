@@ -1,36 +1,31 @@
-const fetch = require("chainfetch");
+const unirest = require("unirest");
 
-module.exports = async ({ Constants: { Colors, APIs, UserAgent } }, documents, msg, commandData) => {
-	await msg.send({
-		embed: {
-			color: Colors.INFO,
-			title: `Loading times are the biggest joke of all`,
-			description: `We're getting you a better one...`,
-		},
-	});
-
-	try {
-		const body = await fetch.get(APIs.JOKE()).set({ Accept: "application/json", "User-Agent": UserAgent }).toJSON()
-			.onlyBody();
-
-		if (body.status === 200 && body.joke && typeof body.joke === "string") {
-			msg.send({
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg) => {
+	unirest.get("http://tambal.azurewebsites.net/joke/random").header("Accept", "application/json").end(res => {
+		if(res.status == 200 && res.body.joke) {
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.RESPONSE,
-					description: body.joke.length < 2048 ? body.joke : `${body.joke.substring(0, 2045)}...`,
-				},
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x00FF00,
+					description: res.body.joke
+				}
+			});
+		} else {
+			msg.channel.createMessage({
+				embed: {
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0xFF0000,
+					description: "This command is a joke in itself 😞"
+				}
 			});
 		}
-	} catch (err) {
-		logger.debug("Failed to fetch joke for the joke command.", { svrid: msg.guild.id }, err);
-		msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: "Failed to fetch a joke...",
-				footer: {
-					text: "Failure is funny too, right?",
-				},
-			},
-		});
-	}
+	});
 };

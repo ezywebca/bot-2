@@ -1,35 +1,61 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 	<title>GAwesomeBot: the best Discord bot!</title>
 	<% include ../partials/head %>
 
 	<style type="text/css">
-	@media screen and (max-width: 768px) {
-		#gawesomebot-discord {
-			height: 1.5rem;
+	@media screen and (max-width: 420px) {
+		#awesomebot-title {
+			font-size: 42px;
+		}
+	}
+	@media screen and (min-width: 321px) and (max-width: 768px) {
+		#awesomebot-title {
+			font-size: 46px;
+		}
+		#awesomebot-subtitle {
+			font-size: 30px;
+		}
+		#awesomebot-discord {
+			height: 31px;
 		}
 	}
 	@media screen and (min-width: 769px) {
-		#gawesomebot-discord {
-			height: 2.5rem;
+		#awesomebot-title {
+			font-size: 96px;
+		}
+		#awesomebot-subtitle {
+			font-size: 40px;
+		}
+		#awesomebot-discord {
+			height: 42px;
 		}
 	}
 	</style>
+	<script>
+	$(document).ready(function() {
+		$(".section-shortcut-link").click(function() {
+			$("html, body").animate({
+				scrollTop: $("#" + this.href.substring(this.href.lastIndexOf("#")+1)).offset().top
+			}, 172);
+		});
+	});
+	</script>
 </head>
 <body>
-	<section id="header" class="main-header-section hero is-primary is-fullheight is-bold">
+	<section id="header" class="hero is-primary is-fullheight is-bold" style="background: url('/header-image');background-size: cover;">
 		<div class="hero-head">
 			<% include ../partials/header %>
 		</div>
 		<div class="hero-body">
 			<div class="container has-text-centered">
 				<img src="/static/img/icon.png" style="border-radius: 100%;width:200px;">
-				<h1 id="gawesomebot-title" class="title is-1 is-size-3-mobile" style="font-family: Montserrat;">
+				<h1 id="awesomebot-title" class="title is-1" style="font-family: Montserrat;">
 					<span style="display: inline-block;">GAwesomeBot</span>
 				</h1>
-				<h2 id="gawesomebot-subtitle" class="title is-2 is-size-4-mobile">
-					The best <img id="gawesomebot-discord" src="/static/img/discord-logo.png" style="vertical-align: middle;padding-bottom: 4px;"> bot!
+				<h2 id="awesomebot-subtitle" class="title is-2">
+					The best <img id="awesomebot-discord" src="/static/img/discord-logo.png" style="vertical-align: top;"> bot!
 				</h2>
 				<br>
 
@@ -43,83 +69,67 @@
 				</p>
 				<br>
 
-				<% if (pageData.bannerMessage) { %>
+				<% if(bannerMessage) { %>
 					<br><br>
-					<h3 class="subtitle is-3"><%- pageData.bannerMessage %></h3>
+					<h3 class="title is-5"><%- bannerMessage %></h3>
 				<% } %>
 			</div>
 		</div>
 		<div class="hero-foot">
-			<nav class="tabs is-boxed is-fullwidth">
+			<nav class="nav">
 				<div class="container">
-					<ul>
-						<li>
-						<a class="is-tab section-shortcut-link" href="#about">
+					<div class="nav-center">
+						<a class="nav-item is-tab section-shortcut-link" href="#about">
 							About
 						</a>
-						</li>
-						<li>
 						<a class="nav-item is-tab section-shortcut-link" href="#media">
 							Media
 						</a>
-						</li>
-						<li>
 						<a class="nav-item is-tab section-shortcut-link" href="#stats">
 							Stats
 						</a>
-						</li>
-						<li>
 						<a class="nav-item is-tab section-shortcut-link" href="#features">
 							Features
 						</a>
-						</li>
-						<li>
 						<a class="nav-item is-tab section-shortcut-link" href="#customizability">
 							Customizability
 						</a>
-						</li>
-						<li>
 						<a class="nav-item is-tab section-shortcut-link" href="#servers">
 							Servers
 						</a>
-						</li>
-						<li>
 						<a class="nav-item is-tab section-shortcut-link" href="#team">
 							Team
 						</a>
-						</li>
-						<li>
 						<a class="nav-item is-tab section-shortcut-link" href="#links">
 							More
 						</a>
-						</li>
-					</ul>
+					</div>
 				</div>
 			</nav>
 		</div>
 	</section>
 
-	<section id="about" class="hero is-light">
+	<section id="about" class="hero is-light is-medium">
 		<div class="hero-body">
 			<div class="container">
 				<nav class="columns">
 					<div class="column has-text-centered">
 						<span class="icon is-large">
-							<i class="fa fa-star fa-3x"></i>
+							<i class="fa fa-star"></i>
 						</span>
-						<p class="subtitle is-4"><strong>Awesome</strong> features</p>
+						<p class="title is-4"><strong>Awesome</strong> features</p>
 					</div>
 					<div class="column has-text-centered">
 						<span class="icon is-large">
-							<i class="fa fa-cog fa-3x"></i>
+							<i class="fa fa-cog"></i>
 						</span>
-						<p class="subtitle is-4">Easy to <strong>configure</strong></p>
+						<p class="title is-4">Easy to <strong>configure</strong></p>
 					</div>
 					<div class="column has-text-centered">
 						<span class="icon is-large">
-							<i class="fa fa-heart fa-3x"></i>
+							<i class="fa fa-heart"></i>
 						</span>
-						<p class="subtitle is-4"><strong>Free</strong> and open-source</p>
+						<p class="title is-4"><strong>Free</strong> and open-source</p>
 					</div>
 				</nav>
 			</div>
@@ -135,28 +145,25 @@
 							<div class="column is-one-third has-text-centered">
 								<div class="notification is-danger">
 									<span class="icon is-large">
-										<i class="fa fa-youtube-play fa-3x"></i>
+										<i class="fa fa-youtube-play"></i>
 									</span>
-									<p class="subtitle is-4">YouTube</p>
-									<p class="title is-4">videos</p>
+									<p class="title is-4"><strong>YouTube</strong><br>videos</p>
 								</div>
 							</div>
 							<div class="column is-one-third has-text-centered">
 								<div class="notification is-warning">
 									<span class="icon is-large">
-										<i class="fa fa-google fa-3x"></i>
+										<i class="fa fa-google"></i>
 									</span>
-									<p class="subtitle is-4">Web results</p>
-									<p class="title is-4">from Google</p>
+									<p class="title is-4">Web results<br>from <strong>Google</strong></p>
 								</div>
 							</div>
 							<div class="column is-one-third has-text-centered">
 								<div class="notification is-black">
 									<span class="icon is-large">
-										<i class="fa fa-reddit-alien fa-3x"></i>
+										<i class="fa fa-reddit-alien"></i>
 									</span>
-									<p class="title is-4">Reddit</p>
-									<p class="subtitle is-4">browser</p>
+									<p class="title is-4"><strong>Reddit</strong><br>browser</p>
 								</div>
 							</div>
 							<div class="column is-12">
@@ -165,28 +172,25 @@
 							<div class="column is-one-third has-text-centered">
 								<div class="notification is-primary">
 									<span class="icon is-large">
-										<i class="fa fa-rss fa-3x"></i>
+										<i class="fa fa-rss"></i>
 									</span>
-									<p class="subtitle is-4">Custom</p>
-									<p class="title is-4">RSS Feeds</p>
+									<p class="title is-4">Custom<br><strong>RSS</strong> feeds</p>
 								</div>
 							</div>
 							<div class="column is-one-third has-text-centered">
 								<div class="notification is-success">
 									<span class="icon is-large">
-										<i class="fa fa-mouse-pointer fa-3x"></i>
+										<i class="fa fa-mouse-pointer"></i>
 									</span>
-									<p class="subtitle is-4">Easily create</p>
-									<p class="title is-4">memes</p>
+									<p class="title is-4">Fun <strong>meme</strong><br>generator</p>
 								</div>
 							</div>
 							<div class="column is-one-third has-text-centered">
 								<div class="notification is-info">
 									<span class="icon is-large">
-										<i class="fa fa-picture-o fa-3x"></i>
+										<i class="fa fa-picture-o"></i>
 									</span>
-									<p class="title is-4">GIF + Image</p>
-									<p class="subtitle is-4">search</p>
+									<p class="title is-4"><strong>GIF</strong> + <strong>Image</strong><br>search</p>
 								</div>
 							</div>
 						</nav>
@@ -201,22 +205,16 @@
 			<div class="container">
 				<nav class="level is-mobile">
 					<div class="level-item has-text-centered">
-						<div>
-							<p class="heading">Server<%= pageData.rawServerCount === 1 ? "" : "s" %></p>
-							<p class="subtitle is-2"><%= pageData.rawServerCount %></p>
-						</div>
+						<p class="heading">Server<%= rawServerCount==1 ? "" : "s" %></p>
+						<p class="title is-2"><%= rawServerCount %></p>
 					</div>
 					<div class="level-item has-text-centered">
-						<div>
-							<p class="heading">User<%= pageData.rawUserCount === 1 ? "" : "s" %></p>
-							<p class="subtitle is-2"><%= pageData.rawUserCount %></p>
-						</div>
+						<p class="heading">User<%= rawUserCount==1 ? "" : "s" %></p>
+						<p class="title is-2"><%= rawUserCount %></p>
 					</div>
-					<div class="level-item has-text-centered" title="<%= pageData.rawUptime %>">
-						<div>
-							<p class="heading">Uptime</p>
-							<p class="subtitle is-2"><%= pageData.roundedUptime %></p>
-						</div>
+					<div class="level-item has-text-centered" title="<%= rawUptime %>">
+						<p class="heading">Uptime</p>
+						<p class="title is-2"><%= roundedUptime %></p>
 					</div>
 				</nav>
 			</div>
@@ -241,88 +239,90 @@
 							<div class="tile is-parent is-vertical">
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-comments fa-2x"></i>
+										<i class="fa fa-comments"></i>
 									</span>
-									<p class="title is-4">In-chat <b>polls</b></p>
+									<p class="title is-4">In-chat <strong>polls</strong></p>
 								</div>
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-star fa-2x"></i>
+										<i class="fa fa-star"></i>
 									</span>
-									<p class="title is-4"><b>GAwesomePoints</b></p>
+									<p class="title is-4"><strong>AwesomePoints</strong></p>
 								</div>
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-gavel fa-2x"></i>
+										<i class="fa fa-gavel"></i>
 									</span>
-									<p class="title is-4"><b>Kick</b> + <b>ban</b></p>
-								</div>
-							</div>
-							<div class="tile is-parent is-vertical">
-								<div class="tile is-child has-text-centered">
-									<span class="icon is-large">
-										<i class="fa fa-question fa-2x"></i>
-									</span>
-									<p class="title is-4"><b>Trivia</b> game</p>
-								</div>
-								<div class="tile is-child has-text-centered">
-									<span class="icon is-large">
-										<i class="fa fa-wikipedia-w fa-2x"></i>
-									</span>
-									<p class="title is-4"><b>Wikipedia</b></p>
-								</div>
-								<div class="tile is-child has-text-centered">
-									<span class="icon is-large">
-										<i class="fa fa-table fa-2x"></i>
-									</span>
-									<p class="title is-4"><b>ModLog</b></p>
+									<p class="title is-4"><strong>Kick</strong> + <strong>ban</strong></p>
 								</div>
 							</div>
 							<div class="tile is-parent is-vertical">
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-key fa-2x"></i>
+										<i class="fa fa-question"></i>
 									</span>
-									<p class="title is-4"><b>Giveaways</b></p>
+									<p class="title is-4"><strong>Trivia</strong> game</p>
 								</div>
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-book fa-2x"></i>
+										<i class="fa fa-wikipedia-w"></i>
 									</span>
-									<p class="title is-4"><b>Urban</b> Dictionary</p>
+									<p class="title is-4"><strong>Wikipedia</strong></p>
 								</div>
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-check-square-o fa-2x"></i>
+										<i class="fa fa-table"></i>
 									</span>
-									<p class="title is-4"><b>To-do</b> list</p>
+									<p class="title is-4"><strong>ModLog</strong></p>
 								</div>
 							</div>
 							<div class="tile is-parent is-vertical">
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-trophy fa-2x"></i>
+										<i class="fa fa-key"></i>
 									</span>
-									<p class="title is-4">Member <b>ranks</b></p>
+									<p class="title is-4"><strong>Giveaways</strong></p>
 								</div>
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-sun-o fa-2x"></i>
+										<i class="fa fa-book"></i>
 									</span>
-									<p class="title is-4"><b>Weather</b> + <b>Time</b></p>
+									<p class="title is-4"><strong>Urban</strong> Dictionary</p>
 								</div>
 								<div class="tile is-child has-text-centered">
 									<span class="icon is-large">
-										<i class="fa fa-sort fa-2x"></i>
+										<i class="fa fa-check-square-o"></i>
 									</span>
-									<p class="title is-4"><b>Convert</b> units</p>
+									<p class="title is-4"><strong>To-do</strong> list</p>
+								</div>
+							</div>
+							<div class="tile is-parent is-vertical">
+								<div class="tile is-child has-text-centered">
+									<span class="icon is-large">
+										<i class="fa fa-trophy"></i>
+									</span>
+									<p class="title is-4">Member <strong>ranks</strong></p>
+								</div>
+								<div class="tile is-child has-text-centered">
+									<span class="icon is-large">
+										<i class="fa fa-sun-o"></i>
+									</span>
+									<p class="title is-4"><strong>Weather</strong> + <strong>Time</strong></p>
+								</div>
+								<div class="tile is-child has-text-centered">
+									<span class="icon is-large">
+										<i class="fa fa-sort"></i>
+									</span>
+									<p class="title is-4"><strong>Convert</strong> units</p>
 								</div>
 							</div>
 						</div>
 					</div>
 					<div class="tile is-parent">
 						<div class="tile is-child">
-							<img class="image" src="/static/img/demo-activity.gif" style="border-radius: 3px;">
+							<center>
+								<img class="image" src="/static/img/demo-activity.gif" style="border-radius: 3px;">
+							</center>
 						</div>
 					</div>
 				</div>
@@ -330,7 +330,7 @@
 		</div>
 	</section>
 
-	<section id="customizability">
+	<section id="customizability" class="hero is-medium">
 		<div class="hero-body">
 			<div class="container">
 				<nav class="columns">
@@ -356,11 +356,11 @@
 	<section id="servers" class="hero is-small is-primary">
 		<div class="hero-body">
 			<div class="container has-text-centered">
-				<h2 class="subtitle is-2">
-					<% if (pageData.roundedServerCount === 0) { pageData.roundedServerCount = pageData.rawServerCount } %>
-					There's a reason over <strong><%= pageData.roundedServerCount %></strong> servers trust GAwesomeBot.
+				<h2 class="title is-2">
+					<% if (roundedServerCount === 0) {roundedServerCount = "<100"} %>
+					There's a reason over <strong><%= roundedServerCount %></strong> servers trust GAwesomeBot.
 				</h2>
-				<h3 class="title is-4">
+				<h3 class="subtitle is-4">
 					It's fun, easy-to-use, and feature-packed.
 					<a href="/activity/servers">
 						Browse servers &raquo;
@@ -370,31 +370,218 @@
 		</div>
 	</section>
 
-	<section id="team">
+	<section id="team" class="hero is-fullheight is-light">
 		<div class="hero-body">
 			<div class="container">
 				<div class="has-text-centered">
 					<h2 class="title is-2">
-						The <strong>Developers</strong>
+						The Original <strong>Creators</strong>
 					</h2>
 					<h4 class="subtitle is-4">
-						These guys pull the ropes behind the scenes.
+						These guys were in charge around here.
 					</h4>
-					<div class="columns is-mobile">
-						<div class="column is-one-third">
+				</div>
+				<br><br><br>
+				<div class="columns">
+					<div class="column is-one-third">
+						<center>
 							<div class="card" style="text-align: left;">
 								<div class="card-image">
 									<figure class="image is-square">
-										<img class="developer-card-icon" src="/static/img/gilbert.png" alt="">
+										<img src="/static/img/bitquote.png" alt="">
 									</figure>
 								</div>
 								<div class="card-content">
 									<div class="media">
 										<div class="media-content">
-											<p class="title is-3 developer-card-name">Gilbert Gobbels</p>
-											<p class="subtitle is-5 developer-card-role">Project Lead, Developer</p>
+											<p class="title is-3" ondblclick="this.innerHTML = 'LazyWaffle';">BitQuote</p>
+											<p class="subtitle is-5">Creator + everything else</p>
 										</div>
 									</div>
+
+									<div class="content">
+										Just another robot <span class="icon">
+											<i class="fa fa-smile-o"></i>
+										</span>
+										<br>
+										<a href="https://github.com/BitQuote">GitHub</a>
+									</div>
+								</div>
+							</div>
+						</center>
+					</div>
+					<div class="column is-one-third">
+						<center>
+							<div class="card" style="text-align: left;">
+								<div class="card-image">
+									<figure class="image is-square">
+										<img src="/static/img/mistmurk.png" alt="">
+									</figure>
+								</div>
+								<div class="card-content">
+									<div class="media">
+										<div class="media-content">
+											<p class="title is-3">mistmurk</p>
+											<p class="subtitle is-5">Dev, Wiki Editor, Support</p>
+										</div>
+									</div>
+
+									<div class="content">
+										Stardust insomniac <span class="icon">
+											<i class="fa fa-heart-o"></i>
+										</span>
+										<br>
+										<a href="https://github.com/mistmurk">GitHub</a>
+										&nbsp;
+										<a href="https://soundcloud.com/mist-murk">SoundCloud</a>
+									</div>
+								</div>
+							</div>
+						</center>
+					</div>
+					<div class="column is-one-third">
+						<center>
+							<div class="card" style="text-align: left;">
+								<div class="card-image">
+									<figure class="image is-square">
+										<img src="/static/img/ksham.jpg" alt="">
+									</figure>
+								</div>
+								<div class="card-content">
+									<div class="media">
+										<div class="media-content">
+											<p class="title is-3">ksham</p>
+											<p class="subtitle is-5">Dev, Wiki Editor, Support</p>
+										</div>
+									</div>
+
+									<div class="content">
+										I haven't decided yet. <span class="icon">
+											<i class="fa fa-exclamation-circle"></i>
+										</span>
+										<br>
+										<a href="https://github.com/Kays">GitHub</a>
+									</div>
+								</div>
+							</div>
+						</center>
+					</div>
+				</div>
+				<br>
+				<div class="columns">
+					<div class="column is-one-third">
+						<center>
+							<div class="card" style="text-align: left;">
+								<div class="card-image">
+									<figure class="image is-square">
+										<img src="/static/img/tinytaco.png" alt="">
+									</figure>
+								</div>
+								<div class="card-content">
+									<div class="media">
+										<div class="media-content">
+											<p class="title is-3">tinytaco</p>
+											<p class="subtitle is-5">Wiki Editor, Support</p>
+										</div>
+									</div>
+
+									<div class="content">
+										I really like tacos. <span class="icon">
+											<i class="fa fa-heart"></i>
+										</span>
+										<br>
+										<a href="https://github.com/tinytaco8">GitHub</a>
+										&nbsp;
+										<a href="http://tinytaco.xyz/">Website</a>
+										&nbsp;
+										<a href="https://twitter.com/tinytaco8">Twitter</a>
+									</div>
+								</div>
+							</div>
+						</center>
+					</div>
+					<div class="column is-one-third">
+						<center>
+							<div class="card" style="text-align: left;">
+								<div class="card-image">
+									<figure class="image is-square">
+										<img src="/static/img/rydgeback.jpg" alt="">
+									</figure>
+								</div>
+								<div class="card-content">
+									<div class="media">
+										<div class="media-content">
+											<p class="title is-3">rydgeback</p>
+											<p class="subtitle is-5">Wiki Editor, Support</p>
+										</div>
+									</div>
+
+									<div class="content">
+										Wiki lad for life <span class="icon">
+											<i class="fa fa-rocket"></i>
+										</span>
+										<br>
+										<a href="https://github.com/rydgeback">GitHub</a>
+									</div>
+								</div>
+							</div>
+						</center>
+					</div>
+					<div class="column is-one-third">
+						<center>
+							<div class="card" style="text-align: left;">
+								<div class="card-image">
+									<figure class="image is-square">
+										<img src="/static/img/hucota7.jpg" alt="">
+									</figure>
+								</div>
+								<div class="card-content">
+									<div class="media">
+										<div class="media-content">
+											<p class="title is-3">Hucota7</p>
+											<p class="subtitle is-5">Wiki Editor, Support</p>
+										</div>
+									</div>
+
+									<div class="content">
+										A programming cat or something <span class="icon">
+											<i class="fa fa-paw"></i>
+										</span>
+										<br>
+										<a href="https://github.com/hucota7">GitHub</a>
+										&nbsp;
+										<a href="https://twitter.com/hucota7">Twitter</a>
+									</div>
+								</div>
+							</div>
+						</center>
+					</div>
+				</div>
+				<br>
+				<div class="has-text-centered">
+					<h2 class="title is-2">
+						The <strong>New</strong> Guys
+					</h2>
+					<h4 class="subtitle is-4">
+						The community pulls the ropes now.
+					</h4>
+										<div class="columns">
+						<div class="column is-one-third">
+						<center>
+							<div class="card" style="text-align: left;">
+								<div class="card-image">
+									<figure class="image is-square">
+										<img src="/static/img/gilbert.png" alt="">
+									</figure>
+								</div>
+								<div class="card-content">
+									<div class="media">
+										<div class="media-content">
+											<p class="title is-3">Gilbert Gobbels</p>
+											<p class="subtitle is-5">Project Lead, Developer</p>
+										</div>
+									</div>
+
 									<div class="content">
 										The Almighty Fish <span class="icon">
 											<i class="fa fa-cog"></i>
@@ -406,44 +593,48 @@
 									</div>
 								</div>
 							</div>
-						</div>
-						<div class="column is-one-third">
+						</center>
+					</div>
+					<div class="column is-one-third">
+						<center>
 							<div class="card" style="text-align: left;">
 								<div class="card-image">
 									<figure class="image is-square">
-										<img class="developer-card-icon" src="/static/img/vlad.png" alt="">
+										<img src="/static/img/vlad.png" alt="">
 									</figure>
 								</div>
 								<div class="card-content">
 									<div class="media">
 										<div class="media-content">
-											<p class="title is-3 developer-card-name">King - Vlad</p>
-											<p class="subtitle is-5 developer-card-role">Developer, Support</p>
+											<p class="title is-3">King - Vlad</p>
+											<p class="subtitle is-5">Developer, Embedder</p>
 										</div>
 									</div>
 
 									<div class="content">
-										Command Wizard <span class="icon">
-											<i class="fa fa-file-text"></i>
+										I do embeds <span class="icon">
+											<i class="fa fa-id-card-u"></i>
 										</span>
 										<br>
 										<a href="https://github.com/KingDGrizzle">GitHub</a>
 									</div>
 								</div>
 							</div>
-						</div>
-						<div class="column is-one-third">
+						</center>
+					</div>
+					<div class="column is-one-third">
+						<center>
 							<div class="card" style="text-align: left;">
 								<div class="card-image">
 									<figure class="image is-square">
-										<img class="developer-card-icon" src="/static/img/hilbert.png" alt="">
+										<img src="/static/img/hilbert.png" alt="">
 									</figure>
 								</div>
 								<div class="card-content">
 									<div class="media">
 										<div class="media-content">
-											<p class="title is-3 developer-card-name" ondblclick="if (this.innerHTML=='HilbertGilbertson') {this.innerHTML = 'GilbertHilbertson'} else {this.innerHTML = 'HilbertGilbertson'}">HilbertGilbertson</p>
-											<p class="subtitle is-5 developer-card-role">Contributor, Support, Wiki</p>
+											<p class="title is-3" ondblclick="if (this.innerHTML=='HilbertGilbertson') {this.innerHTML = 'GilbertHilbertson'} else {this.innerHTML = 'HilbertGilbertson'}">HilbertGilbertson</p>
+											<p class="subtitle is-5">Contributor, Support, Wiki</p>
 										</div>
 									</div>
 
@@ -456,7 +647,8 @@
 									</div>
 								</div>
 							</div>
-						</div>
+						</center>
+					</div>
 					</div>
 				</div>
 			</div>
@@ -479,7 +671,7 @@
 						<a class="button is-light is-medium" href="https://github.com/GilbertGobbels/GAwesomeBot" style="background-color: #fafafa;">
 							GitHub
 						</a>
-						<a class="button is-info is-medium" href="https://twitter.com/GAwesomeBot" style="background-color: #1da1f2;">
+						<a class="button is-info is-medium" href="https://twitter.com" style="background-color: #1da1f2;">
 							Twitter
 						</a>
 					</p>

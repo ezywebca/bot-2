@@ -1,50 +1,37 @@
-module.exports = async ({ client, Constants: { Colors } }, { serverDocument }, msg, commandData) => {
-	const handleMissingMember = () => {
-		logger.verbose(`Couldn't find any user or the user doesn't exist so "${commandData.name}" command can't be ran`, { svrid: msg.guild.id, chid: msg.channel.id, usrid: msg.author.id });
-		msg.send({
-			embed: {
-				color: Colors.LIGHT_ORANGE,
-				title: `I don't know who that is!`,
-				description: `You can admire my beautiful face instead! 💖`,
-				image: {
-					url: client.user.displayAvatarURL({ size: 512 }),
-				},
-			},
-		});
-	};
-
-	const sendAvatarImage = (m, isUserOnly) => {
-		msg.send({
-			embed: {
-				title: `@__${isUserOnly ? m.tag : client.getName(serverDocument, m)}__'s Avatar`,
-				color: Colors.BLUE,
-				image: {
-					url: isUserOnly ? m.displayAvatarURL({ size: 512 }) : m.user.displayAvatarURL({ size: 512 }),
-				},
-			},
-		});
-	};
-
-	let { member } = msg;
-	let fetchedUsr = false;
-	if (msg.suffix && msg.suffix !== "me" && !/^\d+$/.test(msg.suffix.trim())) {
-		member = client.memberSearch(msg.suffix.trim(), msg.guild);
-	} else if (msg.suffix && /^\d+$/.test(msg.suffix.trim())) {
-		member = client.users.fetch(msg.suffix.trim(), true);
-		fetchedUsr = true;
-	}
-	if (member) {
-		if (member instanceof Promise) {
-			try {
-				member = await member;
-			} catch (err) {
-				return handleMissingMember();
-			}
-			if (member && ((!fetchedUsr && member.user) || (fetchedUsr && member))) sendAvatarImage(member, fetchedUsr);
-		} else {
-			sendAvatarImage(member, false);
-		}
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	let member;
+	if(!suffix || suffix.toLowerCase()=="me") {
+		member = msg.member;
 	} else {
-		handleMissingMember();
+		member = bot.memberSearch(suffix, msg.channel.guild);
+	}
+	if(member) {
+		msg.channel.createMessage({
+			embed: {
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0x00FF00,
+				title: `Here's the avatar for ` + member.user.username,
+                image: {
+                    url: member.user.avatarURL || member.user.defaultAvatarURL
+                }
+			}
+		});
+	} else {
+		winston.warn(`Requested member does not exist so ${commandData.name} cannot be shown`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage({
+			embed: {
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0x9ECDF2,
+				description: `I don't know who that is, so you can look at my beautiful face instead 💖\n${bot.user.avatarURL || bot.user.defaultAvatarURL}`
+			}
+		});
 	}
 };

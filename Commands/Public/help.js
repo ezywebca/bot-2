@@ -1,175 +1,92 @@
-const HelpMenu = require("../../Modules/MessageUtils/ReactionMenus/HelpMenu");
-
-const getCommandHelp = (name, type, usage, description) => [
-	`» ${type} Command **::** **${name}** «`,
-	type !== "PM" ? `\t**Description**: ${description || "No description provided."}` : null,
-	`\t**Usage**: \`${usage || "No usage information provided."}\``,
-	type === "public" ? `\tClick [**here**](https://github.com/GilbertGobbels/GAwesomeBot/wiki/Commands#${name}) for more info.` : null,
-].spliceNullElements().join("\n");
-
-module.exports = async ({ client, Constants: { Colors, CategoryEmojiMap, HelpMenuEmojis } }, { serverDocument }, msg, commandData) => {
-	if (msg.suffix) {
-		const description = [];
-		const [pmCmd, publicCmd, sharedCmd] = [client.getPMCommandMetadata(msg.suffix), client.getPublicCommandMetadata(msg.suffix), client.getSharedCommandMetadata(msg.suffix)];
-		pmCmd && description.push(getCommandHelp(pmCmd.command, "PM", pmCmd.usage, pmCmd.description));
-		publicCmd && description.push(getCommandHelp(publicCmd.command, "Public", publicCmd.usage, publicCmd.description));
-		sharedCmd && description.push(getCommandHelp(sharedCmd.command, "Shared", sharedCmd.usage, sharedCmd.description));
-		if (serverDocument.extensions.length) {
-			for (const extension of serverDocument.extensions) {
-				if (extension.type === "command" && msg.suffix.trim().toLowerCase() === extension.key) {
-					const extensionDocument = await Gallery.findOneByObjectID(extension._id);
-					const versionDocument = extensionDocument.versions.id(extension.version);
-					description.push(getCommandHelp(extension.key, "Extension", versionDocument.usage_help, versionDocument.extended_help));
-					// We won't add any more extensions with the same key
-					// If you have two or more of them, you're doing it wrong!
-					break;
-				}
-			}
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix) => {
+	if(suffix) {
+        let embed_fields = [];
+        const getCommandHelp = (name, type, usage, description) => {
+        	return {
+        		name: `__Help for ${type} command **${name}**__`,
+				value: `${description ? (`Description: ${description}\n`) : ""}${usage ? (`Usage: \`${usage}\`\n`) : ""}Click [here](https://github.com/GilbertGobbels/GAwesomeBot/wiki/Commands#${name}) for more info`,
+				inline: true
+			};
+		};
+        let pmCommand = bot.getPMCommandMetadata(suffix);
+        if(pmCommand) {
+        	embed_fields.push(getCommandHelp(suffix, "PM", pmCommand.usage))
 		}
-		description.length === 0 && description.push(`I'm unable to find any command called \`${msg.suffix.trim().toLowerCase()}\`!`);
-		return msg.send({
+		let publicCommand = bot.getPublicCommandMetadata(suffix);
+        if(publicCommand) {
+        	embed_fields.push(getCommandHelp(suffix, "public", publicCommand.usage, publicCommand.description));
+		}
+		if(embed_fields.length == 0) {
+        	embed_fields.push({
+        		name: `Error`,
+				value: `No such command \`${suffix}\``,
+				inline: true
+			});
+		}
+		msg.channel.createMessage({
 			embed: {
-				color: Colors.INFO,
-				description: description.join("\n\n"),
-				footer: {
-					text: `Not what you're looking for? Run "${msg.guild.commandPrefix}help" to see all commands you can run!`,
-				},
-			},
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0x00FF00,
+				fields: embed_fields
+			}
 		});
-	}
-
-	const commands = { "Extensions ⚙️": [] };
-	commands["Extensions ⚙️"].temp = [];
-	const pages = {};
-	const memberBotAdminLevel = client.getUserBotAdmin(msg.guild, serverDocument, msg.member);
-	let longest = 0;
-	for (const command of client.getPublicCommandList()) {
-		const cmdData = client.getPublicCommandMetadata(command);
-		if (!commands[cmdData.category]) {
-			commands[cmdData.category] = [];
-			commands[cmdData.category].temp = [];
-		}
-		if (serverDocument.config.commands[command] && serverDocument.config.commands[command].isEnabled && memberBotAdminLevel >= serverDocument.config.commands[command].admin_level && !serverDocument.config.commands[command].disabled_channel_ids.includes(msg.channel.id)) {
-			const string = `${msg.guild.commandPrefix}${cmdData.command}`;
-			if (string.length > longest) longest = string.length;
-			commands[cmdData.category].temp.push([string, cmdData.usage || "No usage help provided."]);
-		}
-	}
-
-	if (serverDocument.extensions.length) {
-		for (const extension of serverDocument.extensions) {
-			if (memberBotAdminLevel >= extension.admin_level) {
-				const string = `${msg.guild.commandPrefix}${extension.key}`;
-				if (string.length > longest) longest = string.length;
-				const extensionDocument = await Gallery.findOneByObjectID(extension._id);
-				const versionDocument = extensionDocument.versions.id(extension.version);
-				commands["Extensions ⚙️"].temp.push([string, versionDocument.usage_help || "No usage help provided."]);
+	} else {
+		msg.channel.createMessage({
+			embed: {
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0x00FF00,
+				description: `${msg.author.mention} Check your PMs.`
 			}
-		}
-	}
-
-	for (const category of Object.keys(commands)) {
-		const { temp } = commands[category];
-		if (temp.length) {
-			for (const [cmdKey, usage] of temp) {
-				commands[category].push(`${cmdKey.padEnd(longest)} | ${usage}`);
+		});
+		let description = `You can use the following commands in public chat on ${msg.channel.guild.name} with the prefix \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}\`.\n\tSome commands might not be shown because you don't have permission to use them or they've been disabled by a server admin.\nFor a list of commands you can use in private messages with me, respond to this message with \`help\`. 👌\n\tFor detailed information about each command and all of GAwesomeBot's other features, head over to our wiki [here](https://github.com/GilbertGobbels/GAwesomeBot/wiki/Commands).\n\tIf you need support using GAwesomeBot, please join our Discord server [here](${config.discord_link}). Have fun! 🙂🐬`;
+		const commands = {};
+		const memberBotAdmin = bot.getUserBotAdmin(msg.channel.guild, serverDocument, msg.member);
+		bot.getPublicCommandList().forEach(command => {
+			if(serverDocument.config.commands[command] && serverDocument.config.commands[command].isEnabled && memberBotAdmin >= serverDocument.config.commands[command].admin_level) {
+				const commandData = bot.getPublicCommandMetadata(command);
+				if(!commands[commandData.category]) {
+					commands[commandData.category] = [];
+				}
+				commands[commandData.category].push(`${command} ${commandData.usage}`);
 			}
-		} else if (category !== "Extensions ⚙️") {
-			commands[category].push(`== No Commands Enabled Here ==`);
-		}
-		pages[CategoryEmojiMap[category]] = commands[category].sort((a, b) => a.replace(msg.guild.commandPrefix, "").split(" ")[0].localeCompare(b.replace(msg.guild.commandPrefix, "").split(" ")[0])).join("\n");
-	}
+		});
+        msg.author.getDMChannel().then(ch => {
+            ch.createMessage({
+                embed: {
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x00FF00,
+                    description: description
+                }
+            });
+        });
+		Object.keys(commands).sort().forEach(category => {
+			msg.author.getDMChannel().then(ch => {
+                ch.createMessage({
+                    embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0x00FF00,
+                        title: `**${category}**`,
+                        description: `\`\`\`css\n${commands[category].sort().join("\n")}\`\`\``
+                    }
+                });
+			});
+		});
 
-	new HelpMenu(msg, {
-		embed: {
-			color: Colors.INFO,
-			author: {
-				name: `Welcome to the GAwesomeBot help menu!`,
-			},
-			title: `This menu will show you all commands you can run!`,
-			description: [
-				`The prefix is shown in front of all commands, but in case you forgot, it is **${msg.guild.commandPrefix}**.`,
-				`For more information about any command, run \`${msg.guild.commandPrefix}help <command>\`, or head over to our [**wiki**](https://github.com/GilbertGobbels/GAwesomeBot/wiki/Commands).`,
-				`If you need support using GAwesomeBot or got any question, join our [**support server**](${configJS.discordLink})!`,
-				``,
-				`Click a button to see a list of all commands in that category. Here is what each emoji represents:`,
-				``,
-				`ℹ️ **--** This info page`,
-				`🤖 **--** GAwesomeBot Commands`,
-				`🎪 **--** Fun Commands`,
-				`⚒ **--** Moderation Commands`,
-				`🎬 **--** Search & Media Commands`,
-				`👹 **--** NSFW Commands`,
-				`⭐️ **--** Stats & Points Commands`,
-				`🔦 **--** Utility Commands`,
-				pages[HelpMenuEmojis.extension].length ? `⚙️ **--** Extension Commands` : null,
-				``,
-				`You can exit the menu by clicking the ⏹ button. Have fun! 😃🐬`,
-			].spliceNullElements().join("\n"),
-			footer: {
-				text: `For a list of commands you can use in PMs with me, just PM me "help", and I'll let you know!`,
-			},
-		},
-	}, {
-		withExtensions: pages[HelpMenuEmojis.extension].length > 0,
-		pages: {
-			[HelpMenuEmojis.gab]: {
-				embed: {
-					color: Colors.LIGHT_GREEN,
-					title: `GAwesomeBot 🤖`,
-					description: `\`\`\`css\n${pages[HelpMenuEmojis.gab]}\`\`\``,
-				},
-			},
-			[HelpMenuEmojis.fun]: {
-				embed: {
-					color: Colors.LIGHT_BLUE,
-					title: `Fun 🎪`,
-					description: `\`\`\`css\n${pages[HelpMenuEmojis.fun]}\`\`\``,
-				},
-			},
-			[HelpMenuEmojis.mod]: {
-				embed: {
-					color: Colors.LIGHT_RED,
-					title: `Moderation ⚒`,
-					description: `\`\`\`css\n${pages[HelpMenuEmojis.mod]}\`\`\``,
-				},
-			},
-			[HelpMenuEmojis.media]: {
-				embed: {
-					// Don't ask
-					color: Colors.TRIVIA_START,
-					title: `Search & Media 🎬`,
-					description: `\`\`\`css\n${pages[HelpMenuEmojis.media]}\`\`\``,
-				},
-			},
-			[HelpMenuEmojis.nsfw]: {
-				embed: {
-					color: Colors.LIGHT_ORANGE,
-					title: `NSFW 👹`,
-					description: `\`\`\`css\n${pages[HelpMenuEmojis.nsfw]}\`\`\``,
-				},
-			},
-			[HelpMenuEmojis.stats]: {
-				embed: {
-					color: Colors.YELLOW,
-					title: `Stats & Points ⭐️`,
-					description: `\`\`\`css\n${pages[HelpMenuEmojis.stats]}\`\`\``,
-				},
-			},
-			[HelpMenuEmojis.util]: {
-				embed: {
-					color: Colors.BLUE,
-					title: `Utility 🔦`,
-					description: `\`\`\`css\n${pages[HelpMenuEmojis.util]}\`\`\``,
-				},
-			},
-			[HelpMenuEmojis.extension]: {
-				embed: {
-					color: Colors.GREEN,
-					title: `Extensions ⚙️`,
-					description: `\`\`\`css\n${pages[HelpMenuEmojis.extension]}\`\`\``,
-				},
-			},
-		},
-	}).init(240000);
+	}
 };

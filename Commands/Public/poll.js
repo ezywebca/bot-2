@@ -1,86 +1,97 @@
-const { Polls } = require("../../Modules/");
-const PaginatedEmbed = require("../../Modules/MessageUtils/PaginatedEmbed");
+const Polls = require("./../../Modules/Polls.js");
 
-module.exports = async ({ Constants: { Colors } }, { channelDocument, channelQueryDocument }, msg, commandData) => {
-	if (channelDocument.poll.isOngoing) {
-		if (msg.suffix) {
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(channelDocument.poll.isOngoing) {
+		if(suffix) {
 			const voteDocument = channelDocument.poll.responses.id(msg.author.id);
-			if (voteDocument) {
-				msg.send({
+			if(voteDocument) {
+				msg.channel.createMessage({
 					embed: {
-						color: Colors.SOFT_ERR,
-						title: `You've already voted in this poll.`,
-						description: `PM me "${commandData.name} ${msg.guild.name}|#${msg.channel.name}" to erase your vote.`,
-					},
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+						description: `You've already voted in this poll. PM me \`${commandData.name} ${msg.channel.guild.name}|#${msg.channel.name}\` to erase your vote.`
+					}
 				});
 			} else {
 				let vote;
-				if (isNaN(msg.suffix)) {
-					const i = channelDocument.poll.options.map(option => option.toLowerCase()).indexOf(msg.suffix.trim().toLowerCase());
-					if (i > -1) {
+				if(isNaN(suffix)) {
+					const i = channelDocument.poll.options.map(option => {
+						return option.toLowerCase();
+					}).indexOf(suffix);
+					if(i > -1) {
 						vote = i;
 					}
-				} else if (msg.suffix > 0 && msg.suffix <= channelDocument.poll.options.length) {
-					vote = parseInt(msg.suffix.trim());
-					vote--;
+				} else if(suffix >= 0 && suffix < channelDocument.poll.options.length) {
+					vote = parseInt(suffix);
 				}
-
-				if (vote || vote === 0) {
-					channelQueryDocument.push("poll.responses", {
+				if(vote != null) {
+					channelDocument.poll.responses.push({
 						_id: msg.author.id,
-						vote,
+						vote
 					});
-					msg.send({
+					msg.channel.createMessage({
 						embed: {
-							color: Colors.SUCCESS,
-							description: `I casted your vote for **${channelDocument.poll.options[vote]}** 🍻`,
-						},
+                            author: {
+                                name: bot.user.username,
+                                icon_url: bot.user.avatarURL,
+                                url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                            },
+                            color: 0x00FF00,
+							description: `I cast your vote for **${channelDocument.poll.options[vote]}** 🍻`
+						}
 					});
 				} else {
-					msg.send({
+					msg.channel.createMessage({
 						embed: {
-							color: Colors.SOFT_ERR,
-							description: `There's no matching option for \`${msg.suffix}\`. 😩`,
-							footer: {
-								text: `Please use the *number* (starting from 1) of your choice.`,
-							},
-						},
+                            author: {
+                                name: bot.user.username,
+                                icon_url: bot.user.avatarURL,
+                                url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                            },
+                            color: 0xFF0000,
+							description: `There's no matching option for \`${suffix}\`. 😩 Please use the *number* (starting from 0) of your choice.`
+						}
 					});
 				}
 			}
 		} else {
-			const results = await Polls.getResults(channelDocument.poll);
-			let map = [];
-			channelDocument.poll.options.forEach((option, i) => {
-				map.push([
-					`» ${i + 1} « **${option}**`,
-					`\t${results.votes[option].count} vote${results.votes[option].count === 1 ? "" : "s"} (${results.votes[option].percent}%)`,
-				].join("\n"));
+			const results = Polls.getResults(channelDocument.poll);
+			let embed_fields = [];
+			channelDocument.poll.options.map((option, i) => {
+				embed_fields.push({
+					name: `${i}) ${option}:`,
+					value: `${results.votes[option].count} vote${results.votes[option].count == 1 ? "" : "s"} (${results.votes[option].percent}%)`,
+					inline: true
+				});
 			});
-			map = map.chunk(10);
-			const descriptions = [];
-			for (const innerArray of map) {
-				descriptions.push(innerArray.join("\n"));
-			}
-			const menu = new PaginatedEmbed(msg, {
-				footer: `So far, the winner is "${results.winner || "nobody!"}" They have the most votes out of ${channelDocument.poll.responses.length} total vote${channelDocument.poll.responses.length === 1 ? "" : "s"} ✅`,
-				color: Colors.INFO,
-				title: `🔮 Ongoing results for the poll "${channelDocument.poll.title}"`,
-				description: `Use \`${msg.guild.commandPrefix}poll <no. of option>\` here or PM me \`poll ${msg.guild.name} | #${msg.channel.name}\` to vote. 🗳\n\n{description}`,
-			}, {
-				descriptions,
+			msg.channel.createMessage({
+                embed: {
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x00FF00,
+                    description: `🔮 Ongoing results for the poll **${channelDocument.poll.title}**\n\tSo far, the winner is...**${results.winner || "tie!"}** out of ${channelDocument.poll.responses.length} vote${channelDocument.poll.responses.length == 1 ? "" : "s"} ☑ \nUse \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}poll <no. of option>\` here or PM me \`poll ${msg.channel.guild.name}|#${msg.channel.name}\` to vote 🗳`,
+					fields: embed_fields
+				}
 			});
-			await menu.init();
 		}
 	} else {
-		msg.send({
+		msg.channel.createMessage({
 			embed: {
-				color: Colors.SOFT_ERR,
-				description: `There isn't an ongoing poll in this channel. 🛡`,
-				footer: {
-					text: `PM me "${commandData.name} ${msg.guild.name} | #${msg.channel.name}" to start one.`,
-				},
-			},
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0xFF0000,
+				description: `There is no ongoing poll in this channel. 🛡 PM me \`${commandData.name} ${msg.channel.guild.name}|#${msg.channel.name}\` to start one.`
+			}
 		});
 	}
 };

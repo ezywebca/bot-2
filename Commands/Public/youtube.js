@@ -1,75 +1,42 @@
-const auth = require("../../Configurations/auth.js");
-const { get } = require("snekfetch");
-const PaginatedEmbed = require("../../Modules/MessageUtils/PaginatedEmbed");
+const youtube = require("youtube-node");
+const auth = require("./../../Configuration/auth.json");
 
-module.exports = async ({ Constants: { APIs, Colors, Text, UserAgent }, client }, { serverDocument }, msg, commandData) => {
-	if (!msg.suffix) {
-		await msg.sendInvalidUsage(commandData);
-		return;
-	}
-	let query = msg.suffix.substring(0, msg.suffix.lastIndexOf(" "));
-	let num = msg.suffix.substring(msg.suffix.lastIndexOf(" "));
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		let query = suffix.substring(0, suffix.lastIndexOf(" "));
+		let num = suffix.substring(suffix.lastIndexOf(" ")+1);
 
-	if (!query || isNaN(num)) {
-		query = msg.suffix;
-		num = serverDocument.config.command_fetch_properties.default_count;
-	}
-	num = parseInt(num);
-	if (num < 1 || num > serverDocument.config.command_fetch_properties.max_count) num = serverDocument.config.command_fetch_properties.max_count;
-	if (num > 10) num = 10;
+		if(!query || isNaN(num)) {
+			query = suffix;
+			num = 1;
+		}
+		if(num<1 || num>serverDocument.config.command_fetch_properties.max_count) {
+			num = 1;
+		} else {
+			num = parseInt(num);
+		}
 
-	const { body, statusCode } = await get(APIs.YOUTUBE(auth.tokens.googleAPI, query, num));
-	if (statusCode === 200 && body.items && body.items.length) {
-		const descriptions = [];
-		const thumbnails = [];
-		const titles = [];
-		const footers = [];
-		const timestamps = [];
-		const urls = [];
-
-		body.items.forEach(item => {
-			if (!item.snippet) return;
-			timestamps.push(new Date(item.snippet.publishedAt));
-			switch (item.id.kind) {
-				case "youtube#video":
-					footers.push("Video");
-					urls.push(`https://youtube.com/watch?v=${item.id.videoId}`);
-					break;
-				case "youtube#playlist":
-					footers.push("Playlist");
-					urls.push(`https://youtube.com/playlist?list=${item.id.playlistId}`);
-					break;
-				case "youtube#channel":
-					footers.push("Channel");
-					urls.push(`https://youtube.com/channel/${item.id.channelId}`);
-					break;
-				default:
-					footers.push("Unknown");
+		const yt = new youtube();
+		yt.setKey(serverDocument.config.custom_api_keys.google_api_key || auth.tokens.google_api_key);
+		yt.search(query, num, (err, res) => {
+			if(err) {
+				winston.warn(`No YouTube results found for '${query}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+				msg.channel.createMessage("📺 Nothing found on YouTube");
+			} else {
+				bot.sendArray(msg.channel, res.items.map(item => {
+					switch(item.id.kind) {
+						case "youtube#playlist":
+							return `http://www.youtube.com/playlist?list=${item.id.playlistId}`;
+						case "youtube#video":
+							return `http://www.youtube.com/watch?v=${item.id.videoId}`;
+						case "youtube#channel":
+							return `http://www.youtube.com/channel/${item.id.channelId}`;
+					}
+				}));
 			}
-			if (item.snippet.description) descriptions.push(item.snippet.description);
-			else descriptions.push("");
-			titles.push(item.snippet.title);
-			if (item.snippet.thumbnails.default) thumbnails.push(item.snippet.thumbnails.default.url);
-			else thumbnails.push("");
 		});
-
-		await new PaginatedEmbed(msg, {
-			color: Colors.YOUTUBE,
-			footer: "{footer} • Result {currentPage} out of {totalPages}",
-		}, {
-			descriptions,
-			thumbnails,
-			titles,
-			footers,
-			timestamps,
-			urls,
-		}).init();
 	} else {
-		await msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: `No results were found for **${query}**. 😞`,
-			},
-		});
+		winston.warn(`Parameters not provided for '${commandData.name}' command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage(`${msg.author.mention} Please include a query and (optional) number of results to show 💁‍♂`);
 	}
 };

@@ -1,92 +1,26 @@
-const { tokens } = require("../../Configurations/auth");
-const fetch = require("chainfetch");
+const auth = require("./../../Configuration/auth.json");
+const googl = require("goo.gl");
 
-module.exports = async ({ Constants: { Colors, APIs, UserAgent, Text }, auth }, documents, msg, commandData) => {
-	if (!tokens.bitlyToken || tokens.bitlyToken === "") {
-		await msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: "The shorten command is not available on this bot. 🌧️",
-			},
-		});
-		return;
-	}
-
-	if (!msg.suffix) {
-		return msg.sendInvalidUsage(commandData);
-	}
-
-	let link = msg.suffix.trim();
-	if (link.toLowerCase().startsWith("https://bit.ly") || link.toLowerCase().startsWith("http://bit.ly") || link.toLowerCase().startsWith("bit.ly")) {
-		try {
-			link = link.substring(link.indexOf("bit.ly"));
-			const body = await fetch.post(APIs.BITLY("expand")).set({
-				"User-Agent": UserAgent,
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${tokens.bitlyToken}`,
-			}).send({ bitlink_id: link })
-				.onlyBody();
-
-			if (body.long_url && body.long_url !== "") {
-				msg.send({
-					embed: {
-						color: Colors.RESPONSE,
-						description: `That bitly link links to ${body.long_url}`,
-					},
-				});
-			} else {
-				msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						description: `The bitly link ${link} hasn't been registered yet.`,
-					},
-				});
-			}
-		} catch (err) {
-			msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					description: `The bitly link ${link} hasn't been registered yet.`,
-				},
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		googl.setKey(serverDocument.config.custom_api_keys.google_api_key || auth.tokens.google_api_key);
+		if(suffix.toLowerCase().indexOf("http://goo.gl/")==0 || suffix.toLowerCase().indexOf("https://goo.gl/")==0 || suffix.toLowerCase().indexOf("goo.gl/")==0) {
+			googl.expand(suffix).then(url => {
+				msg.channel.createMessage(`<${url}>`);
+			}).catch(err => {
+				winston.warn(`Failed to expand URL '${suffix}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+				msg.channel.createMessage("An error occurred. *That's all we know.*");
+			});
+		} else {
+			googl.shorten(suffix).then(url => {
+				msg.channel.createMessage(`<${url}>`);
+			}).catch(err => {
+				winston.warn(`Failed to shorten URL '${suffix}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+				msg.channel.createMessage("An error occurred. *That's all we know.*");
 			});
 		}
 	} else {
-		try {
-			const body = await fetch.post(APIs.BITLY("shorten")).set({
-				"User-Agent": UserAgent,
-				"Content-Type": "application/json",
-				Authorization: `Bearer ${tokens.bitlyToken}`,
-			}).send({ long_url: msg.suffix })
-				.onlyBody();
-
-			if (body.link && body.link !== "") {
-				msg.send({
-					embed: {
-						color: Colors.RESPONSE,
-						description: `Done! Here's your bitly link: ${body.link}`,
-					},
-				});
-			} else {
-				msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						description: "Something went wrong while trying to shorten your link!",
-						footer: {
-							text: "Make sure it's formatted correctly.",
-						},
-					},
-				});
-			}
-		} catch (err) {
-			msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					description: "Something went wrong while trying to shorten your link!",
-					footer: {
-						text: "Make sure it's formatted correctly.",
-					},
-				},
-			});
-		}
+		winston.warn(`Parameters not provided for '${commandData.name}' command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage(`${msg.author.mention} You humans are confusing. 😕 How am I supposed to know the URL?!`);
 	}
 };

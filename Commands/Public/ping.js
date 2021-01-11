@@ -1,24 +1,20 @@
-const { Stopwatch } = require("../../Modules/Utils/");
+const moment = require("moment");
 
-module.exports = async ({ client, Constants: { Colors } }, documents, msg, commandData) => {
-	const timer = new Stopwatch();
-	await msg.send({
+// Check if the bot is alive and well
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg) => {
+	let info = `🏓 **${msg.channel.guild.members.get(bot.user.id).nick || bot.user.username}** v${config.version} by GG142 aka Gilbert running for ${moment.duration(process.uptime(), "seconds").humanize()}. Serving ${bot.users.size} user${bot.users.size==1 ? "" : "s"} in ${bot.guilds.size} server${bot.guilds.size==1 ? "" : "s"}`;
+	if(config.hosting_url) {
+		info += `. Info [here](${config.hosting_url})`;
+	}
+	msg.channel.createMessage({
 		embed: {
-			color: Colors.INFO,
-			title: "Getting the ping 🏓",
-			description: "Please stand by...",
-		},
-	});
-	const sendPing = timer.duration;
-	timer.stop();
-	msg.send({
-		embed: {
-			color: Colors.LIGHT_GREEN,
-			title: "Pong! 🏓",
-			description: `Sending this message took **${Math.round(sendPing / 2)}**ms. The average heartbeat ping is **${Math.floor(client.ws.ping)}**ms`,
-			footer: {
-				text: `This server is on shard ${client.shardID}.`,
-			},
-		},
+            author: {
+                name: bot.user.username,
+                icon_url: bot.user.avatarURL,
+                url: "https://github.com/GilbertGobbels/GAwesomeBot"
+            },
+            color: 0x00FF00,
+			description: info
+		}
 	});
 };

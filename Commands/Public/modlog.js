@@ -1,132 +1,133 @@
-const ModLog = require("../../Modules/ModLog");
-const ArgParser = require("../../Modules/MessageUtils/Parser");
+const ModLog = require("./../../Modules/ModerationLogging.js");
 
-module.exports = async ({ Constants: { Text, Colors }, client }, { serverDocument }, msg, commandData) => {
-	if (!msg.suffix) {
-		return msg.send({
-			embed: {
-				color: Colors.BLUE,
-				description: `Modlog is currently ${serverDocument.modlog.isEnabled ? `enabled in <#${serverDocument.modlog.channel_id}>. ⚒` : "disabled. 😺"}`,
-				footer: {
-					text: "The commands that work with my wonderful ModLog feature are: `ban`, `kick`, `mute`, `reason`, `softban`, `unban`, `unmute` and `warn`",
-				},
-			},
-		});
-	}
-	const [command, id] = ArgParser.parseQuoteArgs(msg.suffix, msg.suffix.includes("|") ? "|" : " ");
-	switch (command) {
-		case "delete":
-		case "remove": {
-			if (!id) {
-				return msg.sendInvalidUsage(commandData, "You need to supply a ModLog Entry to delete! 🥀");
-			}
-			const errorOrID = await ModLog.delete(msg.guild, id);
-			if (isNaN(errorOrID) && errorOrID !== null) {
-				switch (errorOrID.code) {
-					case "INVALID_MODLOG_CHANNEL":
-					case "MISSING_MODLOG_CHANNEL":
-					case "MODLOG_ENTRY_NOT_FOUND":
-						msg.send({
-							embed: {
-								color: Colors.SOFT_ERR,
-								description: errorOrID.message,
-							},
-						});
-						break;
-					default:
-						throw errorOrID;
-				}
-			} else if (errorOrID !== null) {
-				msg.send({
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix) => {
+	this.delete = id => {
+		ModLog.delete(msg.channel.guild, serverDocument, id, err => {
+			if(err) {
+				winston.error(`Failed to delete modlog entry on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id}, err);
+				msg.channel.createMessage({
 					embed: {
-						color: Colors.SUCCESS,
-						description: `Done! Case #${errorOrID} is gone 💨`,
-					},
+			            author: {
+			              	name: bot.user.username,
+			              	icon_url: bot.user.avatarURL,
+			              	url: "https://github.com/GilbertGobbels/GAwesomeBot"
+			            },
+			            color: 0xFF0000,
+						description: "Oh no! Something went wrong. 🥀 Make sure moderation logging is enabled and that you provided a valid case ID number."
+					}
 				});
 			} else {
-				msg.send({
+				msg.channel.createMessage({
 					embed: {
-						color: Colors.SOFT_ERR,
-						description: `Oh no! Something went wrong 🥀`,
-					},
+			            author: {
+			              	name: bot.user.username,
+			              	icon_url: bot.user.avatarURL,
+			              	url: "https://github.com/GilbertGobbels/GAwesomeBot"
+			            },
+			            color: 0x00FF00,
+						description: `Done! Case #${id} is gone 💨`
+					}
 				});
 			}
-			break;
-		}
-		case "disable": {
-			if (!serverDocument.modlog.isEnabled) {
-				return msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						description: `Moderation Logging is already disabled. ✋`,
-					},
-				});
-			}
-			const ID = await ModLog.disable(msg.guild);
-			if (ID === null) {
-				return msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						description: `Oh no! Something went wrong 🥀`,
-					},
-				});
-			}
-			msg.send({
+		});
+	};
+	this.disable = () => {
+		if(!serverDocument.modlog.isEnabled || !serverDocument.modlog.channel_id) {
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.SUCCESS,
-					description: `Moderation Logging has now been disabled. ❎`,
-				},
+		          	author: {
+		            	name: bot.user.username,
+		            	icon_url: bot.user.avatarURL,
+		            	url: "https://github.com/GilbertGobbels/GAwesomeBot"
+		          	},
+          			color: 0xFF0000,
+					description: "Moderation logging is not enabled. ✋"
+				}
+			});
+		} else {
+			serverDocument.modlog.isEnabled = false;
+			serverDocument.modlog.channel_id = null;
+			msg.channel.createMessage({
+				embed: {
+					author: {
+						name: bot.user.username,
+						icon_url: bot.user.avatarURL,
+						url: "https://github.com/GilbertGobbels/GAwesomeBot"
+						},
+					color: 0x00FF00,
+					description: "Moderation logging is now disabled. ❎"
+				}
+			});
+		}
+	};
+	this.enable = chname => {
+		if(chname) {
+			const ch = bot.channelSearch(chname, msg.channel.guild);
+			if(ch) {
+				serverDocument.modlog.isEnabled = true;
+				serverDocument.modlog.channel_id = ch.id;
+				msg.channel.createMessage({
+					embed: {
+						author: {
+							name: bot.user.username,
+							icon_url: bot.user.avatarURL,
+							url: "https://github.com/GilbertGobbels/GAwesomeBot"
+						},
+						color: 0x00FF00,
+						description: `Moderation logging enabled in ${ch.mention} 🙌`
+					}
+				});
+			} else {
+				msg.channel.createMessage({
+					embed: {
+						author: {
+							name: bot.user.username,
+							icon_url: bot.user.avatarURL,
+			              	url: "https://github.com/GilbertGobbels/GAwesomeBot"
+						},
+						color: 0xFF0000,
+						description: `Unable to find channel \`${chname}\` 🚫`
+					}
+				});
+			}
+		} else {
+			msg.channel.createMessage({
+				embed: {
+          			author: {
+            			name: bot.user.username,
+            			icon_url: bot.user.avatarURL,
+            			url: "https://github.com/GilbertGobbels/GAwesomeBot"
+          			},
+          			color: 0xFF0000,
+					description: "A channel is required to enable moderation logging. 👐"
+				}
+			});
+		}
+	};
+	const args = suffix.split(" ");
+	switch(args[0].toLowerCase()) {
+		case "delete":
+		case "remove":
+			this.delete(args[1]);
+			break;
+		case "disable":
+			this.disable();
+			break;
+		case "enable":
+			this.enable(args[1]);
+			break;
+		default:
+			msg.channel.createMessage({
+				embed: {
+        			author: {
+            			name: bot.user.username,
+            			icon_url: bot.user.avatarURL,
+            			url: "https://github.com/GilbertGobbels/GAwesomeBot"
+          			},
+          			color: (serverDocument.modlog.isEnabled ? 0x00FF00 : 0xFF0000),
+					description: `Modlog is currently ${serverDocument.modlog.isEnabled ? "enabled" : "disabled"}. 😺 The commands that work with my wonderful modlog feature are: \`ban\`, \`kick\`, \`mute\`, \`reason\`, \`softban\`, \`unban\`, \`unmute\` and \`warn\``
+				}
 			});
 			break;
-		}
-		case "enable": {
-			if (id) {
-				const channel = await client.channelSearch(id, msg.guild);
-				if (!channel) {
-					return msg.send({
-						embed: {
-							color: Colors.SOFT_ERR,
-							description: `Unable to find channel \`${id}\` 🚫`,
-						},
-					});
-				}
-				const errorOrID = await ModLog.enable(msg.guild, channel);
-				if (isNaN(errorOrID) && errorOrID !== null) {
-					switch (errorOrID.code) {
-						case "INVALID_MODLOG_CHANNEL":
-						case "MISSING_MODLOG_CHANNEL":
-						case "MODLOG_ENTRY_NOT_FOUND":
-							msg.send({
-								embed: {
-									color: Colors.SOFT_ERR,
-									description: errorOrID.message,
-								},
-							});
-							break;
-						default:
-							throw errorOrID;
-					}
-				} else if (errorOrID !== null) {
-					msg.send({
-						embed: {
-							color: Colors.SUCCESS,
-							description: `Moderation Logging has been enabled in <#${channel.id}> 🙌`,
-						},
-					});
-				} else {
-					msg.send({
-						embed: {
-							color: Colors.SOFT_ERR,
-							description: `Oh no! Something went wrong 🥀`,
-						},
-					});
-				}
-			} else {
-				msg.sendInvalidUsage(commandData, "A channel is required to enable Moderation Logging. 👐");
-			}
-			break;
-		}
-		default:
-			msg.sendInvalidUsage(commandData);
 	}
 };

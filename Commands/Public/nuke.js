@@ -1,59 +1,97 @@
-module.exports = async ({ Constants: { Colors, Text }, client }, documents, msg, commandData) => {
-	if (msg.suffix) {
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
 		let num, query;
-		if (msg.suffix.trim().includes(" ")) {
-			num = msg.suffix.substring(0, msg.suffix.indexOf(" ")).trim();
-			query = msg.suffix.substring(msg.suffix.indexOf(" ") + 1).trim();
+		if(suffix.indexOf(" ") > -1) {
+			num = suffix.substring(0, suffix.indexOf(" ")).trim();
+			query = suffix.substring(suffix.indexOf(" ") + 1).trim();
 		} else {
-			num = msg.suffix;
+			num = suffix;
 		}
-
-		if (!num || isNaN(num) || (num !== -1 && num < 1) || num > 100) {
-			return msg.sendInvalidUsage(commandData);
-		}
-
-		num = parseInt(num);
-		let filter = () => true;
-		let before, after;
-
-		if (query) {
-			if (query.startsWith(":") && query.length > 1) {
-				filter = message => message.content.toLowerCase().includes(query.slice(1).toLowerCase());
-			} else if (query.startsWith(">") && query.length > 1 && !isNaN(query.slice(1))) {
-				after = query.slice(1);
-			} else if (query.startsWith("<") && query.length > 1 && !isNaN(query.slice(1))) {
-				before = query.slice(1);
-			} else {
-				let member;
-				if (query.startsWith("<@") && query.includes(">")) {
-					member = await client.memberSearch(query, msg.guild);
+		if(!num || isNaN(num) || (num != -1 && num < 2)) {
+			winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+			msg.channel.createMessage({
+				embed: {
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0xFF0000,
+					description: `I need a valid 🔢 of messages to delete`
 				}
-				if (member) {
-					filter = message => message.author.id === member.user.id;
+			});
+		} else {
+			num = parseInt(num);
+			let filter = () => {
+				return true;
+			};
+			let before, after;
+			if(query) {
+				query = query.trim();
+				if(query.startsWith(":") && query.length > 1) {
+					filter = message => {
+						return message.content.toLowerCase().indexOf(query.slice(1).toLowerCase());
+					};
+				} else if(query.startsWith(">") && query.length > 1 && !isNaN(query.slice(1))) {
+					after = query.slice(1);
+				} else if(query.startsWith("<") && query.length > 1 && !isNaN(query.slice(1))) {
+					before = query.slice(1);
 				} else {
-					filter = message => message.content.toLowerCase() === query.toLowerCase();
+					let member;
+					if(query.startsWith("<@") && query.indexOf(">") > -1) {
+						member = bot.memberSearch(query, msg.channel.guild);
+					}
+					if(member) {
+						filter = message => {
+							return message.author.id==member.id;
+						};
+					} else {
+						filter = message => {
+							return message.content.toLowerCase()==query.toLowerCase();
+						};
+					}
 				}
 			}
-		}
 
-		const messages = await msg.channel.messages.fetch({ limit: 100, before: before || msg.id, after }).then(msgs => msgs.filter(filter).array().slice(0, num));
-		msg.channel.bulkDelete(messages, true).then(({ size }) => {
-			msg.send({
-				embed: {
-					color: Colors.SUCCESS,
-					description: `Deleted ${size} message${size === 1 ? "" : "s"} in this channel 🗑🔥`,
-				},
+			msg.channel.purge(num, filter, before, after).then(deleted => {
+				msg.channel.createMessage({
+					embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0x00FF00,
+						description: `🗑🔥 Deleted ${deleted} message${deleted == 1 ? "" : "s"} in this channel`
+					}
+				});
+			}).catch(err => {
+				winston.error(`Failed to ${commandData.name} in channel '${msg.channel.name}' on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+				msg.channel.createMessage({
+					embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+						description: "Uh oh, I couldn't delete all those messages. Try a smaller number...or maybe I just don't have permissions to nuke this channel 💣"
+					}
+				});
 			});
-		}).catch(err => {
-			logger.debug(`Failed to ${commandData.name} in channel '${msg.channel.name}' on server '${msg.guild.name}'`, { svrid: msg.guild.id, chid: msg.channel.id, usrid: msg.author.id }, err);
-			msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					description: "Uh oh, I failed to delete all those messages. Try a smaller number, and make sure I have sufficient permissions to nuke in this channel! 💣",
-				},
-			});
-		});
+		}
 	} else {
-		msg.sendInvalidUsage(commandData);
+		winston.warn(`Parameters not provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage({
+			embed: {
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0xFF0000,
+				description: `Hmmm? \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} ${commandData.usage}\``
+			}
+		});
 	}
 };

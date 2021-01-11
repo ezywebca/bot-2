@@ -1,9 +1,14 @@
-module.exports = async ({ client, configJS, Constants: { Colors } }, msg, commandData) => {
-	msg.reply({
+module.exports = (bot, db, config, winston, userDocument, msg) => {
+	msg.channel.createMessage({
 		embed: {
-			color: Colors.SUCCESS,
-			title: `Thank you for choosing ${client.user.username}! 😊`,
-			description: `Click [here](${configJS.oauthLink.format({ id: client.user.id })}) to invite me to your server!`,
-		},
+			author: {
+				name: bot.user.username,
+				icon_url: bot.user.avatarURL,
+				url: "https://github.com/GilbertGobbels/GAwesomeBot"
+			},
+			color: 0x00FF00,
+			title: "Thanks for choosing " + bot.user.username + " 😊",
+			description: `Click [here](${config.oauth_link}) to invite me to your server!`
+		}
 	});
 };

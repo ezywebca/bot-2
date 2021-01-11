@@ -1,52 +1,56 @@
-const wiki = require("wikijs").default();
+const wiki = require("wikijs");
+const wikipedia = new wiki.default();
 
-module.exports = async ({ Constants: { Colors } }, documents, msg, commandData) => {
-	await msg.send({
-		embed: {
-			color: Colors.INFO,
-			title: `Searching Wikipedia just for you ⌛`,
-			description: `Please stand by...`,
-		},
-	});
-	let result;
-	if (!msg.suffix) {
-		const random = await wiki.random(1);
-		result = await wiki.page(random[0]);
-	} else {
-		const search = await wiki.search(msg.suffix, 1);
-		if (!search.results.length) {
-			return msg.send({
-				embed: {
-					color: Colors.SOFT_ERR,
-					title: "What was that again? 📚🤓",
-					description: "Even Wikipedia doesn't seem to know what you're talking about.",
-					footer: {
-						text: "Check for typos or try searching for something else!",
-					},
-				},
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix) => {
+	const showNoResults = title => {
+		winston.warn(`No Wikipedia results found for '${title}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage("Wikipedia has nothing 📚🤓");
+	};
+
+	const showSummary = page => {
+		if(page.raw.pageid==null) {
+			showNoResults(page.raw.title);
+		} else {
+			page.summary().then(summary => {
+				if(page.raw.pageprops && page.raw.pageprops.disambiguation!=null) {
+					const options = summary.split("\n").slice(1);
+					msg.channel.createMessage(`Select one of the following:\n\t${options.map((a, i) => {
+						return `${i}) ${a}`;
+					}).join("\n\t")}`).then(() => {
+						bot.awaitMessage(msg.channel.id, msg.author.id, message => {
+							message.content = message.content.trim();
+							return message.content && !isNaN(message.content) && message.content>=0 && message.content<options.length;
+						}, message => {
+							const selection = options[+message.content.trim()];
+							wikipedia.page(selection.substring(0, selection.indexOf(","))).then(page => {
+								showSummary(page);
+							});
+						});
+					});
+				} else {
+					bot.sendArray(msg.channel, summary.split("\n").slice(0, 3).concat(`**${page.raw.fullurl}**`));
+				}
 			});
 		}
-		result = await wiki.page(search.results[0]);
+	};
+
+	const showPage = title => {
+		wikipedia.page(title).then(page => {
+			showSummary(page);
+		});
+	};
+	
+	if(suffix) {
+		wikipedia.search(suffix).then(data => {
+			if(data.results.length>0) {
+				showPage(data.results[0]);
+			} else {
+				showNoResults(suffix);
+			}
+		});
+	} else {
+		wikipedia.random(1).then(results => {
+			showPage(results[0]);
+		});
 	}
-	let description = await result.summary();
-	if (description.length < 100) {
-		// 100 is a bit short so load the full description in that case
-		description = await result.content();
-	}
-	if (description.length > 1950) {
-		description = `${description.substring(0, 1950)}...\nArticle is too long, click [**here**](${result.raw.fullurl}) to read more!`;
-	}
-	// Sometimes wikijs crashes when attempting to grab a main image. If it works, great. If not, too bad.
-	const mainImage = await result.mainImage().catch(() => null);
-	msg.send({
-		embed: {
-			color: Colors.RESPONSE,
-			title: result.raw.title,
-			url: result.raw.fullurl,
-			description,
-			image: {
-				url: mainImage,
-			},
-		},
-	});
 };

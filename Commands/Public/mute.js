@@ -1,62 +1,85 @@
-const { create: CreateModLog } = require("../../Modules/ModLog");
-const ArgParser = require("../../Modules/MessageUtils/Parser");
-const ModLog = require("../../Modules/ModLog.js");
+const ModLog = require("./../../Modules/ModerationLogging.js");
 
-module.exports = async ({ Constants: { Colors, Text }, client }, { serverDocument }, msg, commandData) => {
-	if (msg.suffix) {
-		let [memberQuery, ...reason] = ArgParser.parseQuoteArgs(msg.suffix, msg.suffix.includes("|") ? "|" : " ");
-		if (!memberQuery) return msg.sendInvalidUsage(commandData);
-		memberQuery = memberQuery.trim();
-		reason = reason ? reason.join(" ").trim() : "No reason specified...";
-
-		const member = await client.memberSearch(memberQuery, msg.guild).catch(() => null);
-		if (member) {
-			const { canClientMute, memberAboveAffected } = client.canDoActionOnMember(msg.guild, msg.member, member, "mute");
-			if (!canClientMute) {
-				return msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						title: `I'm sorry, but I can't do that... 😔`,
-						description: `I'm missing permissions to mute that user!\nEither they are above me or I don't have the **Manage Roles** permission.`,
-					},
-				});
-			}
-			if (!memberAboveAffected) {
-				return msg.send({
-					embed: {
-						color: Colors.MISSING_PERMS,
-						title: `I'm sorry, but I cannot let you do that! 😶`,
-						description: `You cannot mute someone who's above you! That's dumb!`,
-					},
-				});
-			}
-
-			if (client.isMuted(msg.channel, member)) {
-				return msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						description: "That member is already muted. You can't double-mute members, that's crazy talk! 🤪",
-					},
-				});
-			}
-
-			await client.muteMember(msg.channel, member, `Muted ${member.user.tag} in #${msg.channel.name} | Command issued by ${msg.author.tag}`);
-			await ModLog.create(msg.guild, "Mute", member, msg.author, reason);
-			msg.send({
-				embed: {
-					color: Colors.SUCCESS,
-					description: `**@${client.getName(serverDocument, member)}** can't speak in #${msg.channel.name} anymore 🔇`,
-				},
-			});
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix) => {
+	if(suffix) {
+		let member, reason;
+		if(suffix.indexOf("|") > -1 && suffix.length > 3) {
+			member = bot.memberSearch(suffix.substring(0, suffix.indexOf("|")).trim(), msg.channel.guild);
+			reason = suffix.substring(suffix.indexOf("|") + 1).trim();
 		} else {
-			msg.send({
+			member = bot.memberSearch(suffix, msg.channel.guild);
+		}
+		if(member) {
+			if(bot.isMuted(msg.channel, member)) {
+				msg.channel.createMessage({
+					embed: {
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+						description: `**@${bot.getName(msg.channel.guild, serverDocument, member)}** is already muted, so I can't mute them again! 🤓`
+					}
+				});
+			} else {
+				bot.muteMember(msg.channel, member, err => {
+					if(err) {
+						winston.error(`Failed to mute member '${member.user.username}' in channel '${msg.channel.name}' from server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.name, usrid: member.id}, err);
+						msg.channel.createMessage({
+							embed: {
+                                author: {
+                                    name: bot.user.username,
+                                    icon_url: bot.user.avatarURL,
+                                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                },
+                                color: 0xFF0000,
+								description: `I couldn't mute **@${bot.getName(msg.channel.guild, serverDocument, member)}** in this channel 😴 *Thanks Discord*`,
+								footer: {
+                                	text: "Make sure I have permission to edit this channels settings!"
+								}
+							}
+						});
+					} else {
+						msg.channel.createMessage({
+							embed: {
+                                author: {
+                                    name: bot.user.username,
+                                    icon_url: bot.user.avatarURL,
+                                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                },
+                                color: 0x00FF00,
+								description: `**@${bot.getName(msg.channel.guild, serverDocument, member)}** can't speak in #${msg.channel.name} anymore 🔇`
+							}
+						});
+						ModLog.create(msg.channel.guild, serverDocument, "Mute", member, msg.member, reason);
+					}
+				});
+			}
+		} else {
+			msg.channel.createMessage({
 				embed: {
-					color: Colors.SOFT_ERR,
-					description: `I couldn't find a matching member in this guild... 🧐`,
-				},
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0xFF0000,
+					description: "I couldn't find a matching member on this server."
+				}
 			});
 		}
 	} else {
-		msg.sendInvalidUsage(commandData, "Do you want me to mute you? 😮");
+		msg.channel.createMessage({
+			embed: {
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0xFF0000,
+				description: "Do you want me to mute you? 😮"
+			}
+		});
 	}
 };

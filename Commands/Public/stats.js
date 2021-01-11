@@ -1,112 +1,105 @@
-const { Utils: { ClearServerStats: clearStats, RankScoreCalculator: computeRankScore } } = require("../../Modules");
+const clearStats = require("./../../Modules/ClearServerStats.js");
+const computeRankScore = require("./../../Modules/RankScoreCalculator.js");
 const moment = require("moment");
 
-module.exports = async ({ Constants: { Colors, Text }, client }, { serverDocument }, msg, commandData) => {
-	if (msg.suffix === "clear" && client.getUserBotAdmin(msg.guild, serverDocument, msg.member) >= 1) {
-		await msg.send({
-			embed: {
-				color: Colors.PROMPT,
-				title: `Waiting on @__${client.getName(serverDocument, msg.member)}__'s input...`,
-				description: `Are you sure you want to reset this week's guild statistics? 🗑`,
-				footer: {
-					text: "This action cannot be undone!",
-				},
-			},
-		});
-		const response = (await msg.channel.awaitMessages(res => res.author.id === msg.author.id, { max: 1, time: 60000 })).first();
-		response.delete().catch();
-		if (response && response.content && configJS.yesStrings.includes(response.content.toLowerCase().trim())) {
-			await clearStats(client, serverDocument);
-			msg.send({
-				embed: {
-					color: Colors.SUCCESS,
-					description: "Shwoom, your statistics have been reset! 🔥",
-				},
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix) => {
+	if(suffix === "clear") {
+		if(bot.getUserBotAdmin(msg.channel.guild, serverDocument, msg.member) >= 1) {
+			clearStats(bot, db, winston, msg.channel.guild, serverDocument, () => {
+				msg.channel.createMessage("All done! 🐬 Server stats cleared");
 			});
 		} else {
-			msg.send({
-				embed: {
-					color: Colors.INFO,
-					description: "Your stats won't be fed to the shredder today. 📃",
-				},
-			});
+			winston.warn(`Member '${msg.author.username}' is not an admin and cannot clear stats for server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+			msg.channel.createMessage("Insufficient permissions to clear all stats 💪");
 		}
-	} else if (msg.suffix === "clear") {
-		msg.send({
-			embed: {
-				color: Colors.MISSING_PERMS,
-				description: `You have insufficient permissions to clear all guild statistics 💪`,
-				footer: {
-					text: "Only Bot Admins can clear guild stats!",
-				},
-			},
-		});
 	} else {
-		await msg.send({
-			embed: {
-				color: Colors.INFO,
-				description: `Gathering stats for guild **${msg.guild.name}** ⌛`,
-				footer: {
-					text: "Please stand by...",
-				},
-			},
+		const mostActiveMembers = serverDocument.members.sort((a, b) => {
+			return computeRankScore(b.messages, b.voice) - computeRankScore(a.messages, a.voice);
+		})
+		.filter(a => {
+			return msg.channel.guild.members.has(a._id);
+		})
+		.slice(0, 5)
+		.map(a => {
+			const score = computeRankScore(a.messages, a.voice);
+			return `@${bot.getName(msg.channel.guild, serverDocument, msg.channel.guild.members.get(a._id))}: ${score} activity point${score === 1 ? "" : "s"} (${a.messages} message${a.messages === 1 ? "" : "s"}${a.voice > 0 ? (`, ${moment.duration(a.voice, "minutes").humanize()} active on voice chat`) : ""})`;
 		});
 
-		const mostActiveMembers = Object.values(serverDocument.members)
-			.filter(a => msg.guild.members.has(a._id))
-			.sort((a, b) => computeRankScore(b.messages, b.voice) - computeRankScore(a.messages, a.voice))
-			.slice(0, 5)
-			.map(a => {
-				const score = computeRankScore(a.messages, a.voice);
-				return `**@${client.getName(serverDocument, msg.guild.members.get(a._id))}**: ${score} activity point${score === 1 ? "" : "s"} (${a.messages} message${a.messages === 1 ? "" : "s"}${a.voice > 0 ? `, ${moment.duration(a.voice, "minutes").humanize()} active on voice chat` : ""})`;
-			});
+		const mostPlayedGames = serverDocument.games.sort((a, b) => {
+			return b.time_played - a.time_played;
+		})
+		.slice(0, 5)
+		.map(a => {
+			const time_played = a.time_played * 15;
+			return `${a._id} played for ${moment.duration(time_played, "minutes").humanize()} total`;
+		});
 
-		const mostPlayedGames = serverDocument.games.sort((a, b) => b.time_played - a.time_played)
-			.slice(0, 5)
-			.map(a => {
-				const timePlayed = a.time_played * 15;
-				return `**${a._id}** played for ${moment.duration(timePlayed, "minutes").humanize()} total`;
-			});
+		const mostUsedCommands = serverDocument.command_usage ? Object.keys(serverDocument.command_usage).map(a => {
+			return {
+				_id: a,
+				uses: serverDocument.command_usage[a]
+			};
+		})
+		.sort((a, b) => {
+			return b.uses - a.uses;
+		})
+		.slice(0, 5).map(a => {
+			return `\`${a._id}\`, used ${a.uses} time${a.uses === 1 ? "" : "s"}`;
+		}) : [];
 
-		const mostUsedCommands = serverDocument.command_usage ? Object.keys(serverDocument.command_usage).sort((a, b) => serverDocument.command_usage[b] - serverDocument.command_usage[a])
-			.slice(0, 5)
-			.map(a => `\`${a}\`, used ${serverDocument.command_usage[a]} time${serverDocument.command_usage[a] === 1 ? "" : "s"}`) : [];
-
-		const userDocuments = await Users.find({
+		db.users.find({
 			_id: {
-				$in: Array.from(msg.guild.members.keys()),
+				$in: Array.from(msg.channel.guild.members.keys())
 			},
 			points: {
-				$gt: 0,
-			},
-		}).limit(5).exec();
+				$gt: 0
+			}
+		})
+		.sort({
+			points: -1
+		})
+		.limit(5).exec((err, userDocuments) => {
+			const richestMembers = userDocuments ? userDocuments.map(a => {
+				return `@${bot.getName(msg.channel.guild, serverDocument, msg.channel.guild.members.get(a._id))}: ${a.points} AwesomePoint${a.points === 1 ? "" : "s"}`;
+			}) : [];
 
-		const richestMembers = userDocuments ? userDocuments.map(a => `**@${client.getName(serverDocument, msg.guild.members.get(a._id))}**: ${a.points} GAwesomePoint${a.points === 1 ? "" : "s"}`) : [];
+			let embed_fields = [];
 
-		const fields = [];
-		fields.push({
-			name: "**☢ Most active members**",
-			value: `${mostActiveMembers.join("\n") || "*This guild has been dead this week*"}`,
-		});
-		fields.push({
-			name: "**🎮 Most-played games**",
-			value: `${mostPlayedGames.join("\n") || "*No one on this guild plays games*"}`,
-		});
-		fields.push({
-			name: "**🤑 Richest members**",
-			value: `${richestMembers.join("\n") || "*Everyone on this guild is really poor*"}`,
-		});
-		fields.push({
-			name: "**ℹ Most-used commands**",
-			value: `${mostUsedCommands.join("\n") || "*I haven't been used much this week*"}`,
-		});
+			embed_fields.push({
+				name: "**☢ Most active members**",
+				value: `${mostActiveMembers.join("\n") || "*The server has been dead this week*"}`,
+				inline: false
+			});
 
-		msg.send({
-			embed: {
-				title: `This week's GAwesomeBot statistics for **${msg.guild.name}**`,
-				color: Colors.RESPONSE,
-				fields,
-			},
+			embed_fields.push({
+				name: "**🎮 Most-played games**",
+				value: `${mostPlayedGames.join("\n") || "*No one on this server plays games*"}`,
+				inline: false
+			});
+
+			embed_fields.push({
+				name: "**🤑 Richest members**",
+				value: `${richestMembers.join("\n") || "*Everyone on this server is really poor*"}`,
+				inline: false
+			});
+
+			embed_fields.push({
+				name: "**ℹ Most-used commands**",
+				value: `${mostUsedCommands.join("\n") || "*I haven't been used much this week*"}`,
+				inline: false
+			});
+
+			msg.channel.createMessage({
+				embed: {
+					author: {
+						name: bot.user.username,
+						icon_url: bot.user.avatarURL,
+						url: "https://github.com/GilbertGobbels/GAwesomeBot"
+					},
+					color: 0x00FF00,
+					fields: embed_fields
+				}
+			});
 		});
 	}
 };

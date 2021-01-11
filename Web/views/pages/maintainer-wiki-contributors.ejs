@@ -1,8 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 	<title>Wiki Contributors - <%= serverData.name %> Maintainer Console</title>
 	<% include ../partials/head %>
+
+	<link rel="stylesheet" href="/static/css/auto-complete.css">
+	<script src="/static/js/auto-complete.min.js"></script>
 	<script>
 	function newWikiContributors() {
 		var newContributorUser = $("#new-contributor-user");
@@ -13,10 +16,10 @@
 		}
 
 		if(newContributorUser.val()) {
-			GAwesomeData.HUM = true;
+			hide_update_modal = true;
 			$.ajax({
 				type: "POST",
-				url: "<%= currentPage %>",
+				url: "<%= currentPage %>?svrid=maintainer",
 				data: {
 					"new-user": newContributorUser.val()
 				},
@@ -28,7 +31,7 @@
 	}
 	</script>
 </head>
-<body>
+<body onload="setUserAutocomplete();">
 	<% include ../partials/dashboard-header %>
 	<% include ../partials/dashboard-socket-updates %>
 
@@ -42,67 +45,68 @@
 					<h1 class="title">
 						Wiki Contributors
 					</h1>
-					<article class="message is-primary">
-						<div class="message-body">
-							<div class="content">
-								These users are who can contribute to the <a href="/wiki">GAwesomeBot Wiki</a>. This includes <strong>creating, editing, and deleting</strong> pages.
+					<div class="container">
+						<article class="message is-primary">
+							<div class="message-body">
+								<div class="content">
+									These users are who can contribute to the <a href="/wiki">AwesomeBot Wiki</a>. This includes <strong>creating, editing, and deleting</strong> pages.
+								</div>
 							</div>
-						</div>
-					</article>
-					<form id="form" action="<%= currentPage %>" method="post">
-						<div class="field" style="overflow-x: scroll;">
-							<% if(configData.wiki_contributors.length>0) { %>
-									<table class="table is-fullwidth">
+						</article>
+					</div>
+					<br>
+					<div class="container">
+						<form id="form" action="<%= currentPage %>?svrid=maintainer" method="post">
+							<div style="overflow-x: scroll;">
+								<% if(config.wiki_contributors.length>0) { %>
+									<table class="table">
 										<thead>
 											<tr>
 												<th></th>
 												<th>Username</th>
 												<th>ID</th>
-												<% if(pageData.showRemove) { %>
+												<% if(showRemove) { %>
 													<th></th>
 												<% } %>
 											</tr>
 										</thead>
 										<tbody>
-											<% for(var i=0; i<configData.wiki_contributors.length; i++) { %>
+											<% for(var i=0; i<config.wiki_contributors.length; i++) { %>
 												<tr>
 													<td>
-														<img class="image is-24x24" src="<%= configData.wiki_contributors[i].avatar %>" alt="<%= configData.wiki_contributors[i].id %>">
+														<img class="image is-24x24" src="<%= config.wiki_contributors[i].avatar %>" alt="<%= config.wiki_contributors[i].id %>">
 													</td>
 													<td>
-														<%= configData.wiki_contributors[i].name %>
-														<% if(configData.wiki_contributors[i].isSudoMaintainer) { %>
-															&nbsp;
-															<span class="tag">Sudo Maintainer</span>
-														<% } else if (configData.wiki_contributors[i].isMaintainer) { %>
+														<%= config.wiki_contributors[i].name %>
+														<% if(config.wiki_contributors[i].isMaintainer) { %>
 															&nbsp;
 															<span class="tag">Maintainer</span>
 														<% } %>
 													</td>
 													<td>
-														<%= configData.wiki_contributors[i].id %>
+														<%= config.wiki_contributors[i].id %>
 													</td>
-													<td>
-														<button class="button is-small is-danger" name="contributor-removed" value="<%= configData.wiki_contributors[i].id %>" onclick="GAwesomeData.HUM = true;"<% if(pageData.showRemove && configData.wiki_contributors[i].isMaintainer) { %> disabled<% } %>>
-															<span>Remove</span>
-															<span class="icon is-small">
-																<i class="fa fa-times"></i>
-															</span>
-														</button>
-													</td>
+													<% if(showRemove && !config.wiki_contributors[i].isMaintainer) { %>
+														<td>
+															<button class="button is-small is-danger" name="contributor-<%= config.wiki_contributors[i].index %>-removed" onclick="hide_update_modal = true;">
+																<span>Remove</span>
+																<span class="icon is-small">
+																	<i class="fa fa-times"></i>
+																</span>
+															</button>
+														</td>
+													<% } %>
 												</tr>
 											<% } %>
 										</tbody>
 									</table>
 								<% } else { %>
-									<article class="message is-embedded-message">
+									<article class="message">
 										<div class="message-header">
-											<p>
-												<span class="icon">
-													<i class="fa fa-meh-o"></i>
-												</span>
-												Nothing to see here
-											</p>
+											<span class="icon">
+												<i class="fa fa-meh-o"></i>
+											</span>
+											<span>Nothing to see here</span>
 										</div>
 										<div class="message-body">
 											There are no wiki contributors. How is this even possible?!
@@ -111,28 +115,26 @@
 									<br>
 								<% } %>
 							</div>
-						<div class="field is-horizontal">
-							<div class="field-body">
-								<div class="field is-grouped">
-									<div class="control is-expanded">
-										<input id="new-contributor-user" class="input is-primary user-autocomplete" type="text" placeholder="Username or ID" onkeypress="return event.keyCode !== 13;">
-									</div>
-									<div class="control">
+							<div class="control is-horizontal">
+								<div class="control is-grouped">
+									<p class="control is-expanded">
+										<input id="new-contributor-user" class="input user-autocomplete" type="text" placeholder="Username" onkeypress="return event.keyCode != 13;">
+									</p>
+									<p class="control">
 										<a class="button is-primary" onclick="newWikiContributors();">
 											<span class="icon">
 										        <i class="fa fa-plus"></i>
 										    </span>
 										    <span>Add</span>
 										</a>
-									</div>
+									</p>
 								</div>
 							</div>
-						</div>
-					</form>
+						</form>
+					</div>
 				</div>
 			</div>
 		</div>
-		<script>GAwesomeUtil.setUserAutocomplete();</script>
 	</section>
 
 	<% include ../partials/footer %>

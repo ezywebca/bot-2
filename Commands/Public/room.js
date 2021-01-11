@@ -1,186 +1,93 @@
-const ArgParser = require("../../Modules/MessageUtils/Parser");
 const moment = require("moment");
+const channelTypes = {
+	"text": 0,
+	"voice": 2
+};
 
-module.exports = async ({ Constants: { Colors, Text }, client }, { serverDocument, serverQueryDocument }, msg, commandData) => {
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
 	const roomDocument = serverDocument.config.room_data.id(msg.channel.id);
-	if (roomDocument) {
-		const question = await msg.send({
-			embed: {
-				color: Colors.PROMPT,
-				description: `This room was created ${moment(roomDocument.created_timestamp).fromNow()}. Would you like to delete it?`,
-			},
-			footer: {
-				text: "You have 1 minute to respond.",
-			},
-		});
-		let response = (await msg.channel.awaitMessages(res => res.author.id === msg.author.id, { max: 1, time: 60000 })).first();
-		if (response) {
-			try {
-				await response.delete();
-			} catch (err) {
-				// No-op
-			}
-		}
-		if (response && configJS.yesStrings.includes(response.content.toLowerCase().trim())) {
-			let success = true;
-			await msg.channel.delete(`Room Management | Command issued by ${msg.author.tag}`).catch(err => {
-				success = false;
-				logger.debug(`Failed to delete room '${msg.channel.name}' on server '${msg.guild.name}'`, { svrid: msg.guild.id, chid: msg.channel.id }, err);
-				question.edit({
-					embed: {
-						color: Colors.LIGHT_ERR,
-						title: "Failed to delete room!",
-						description: "I might be missing sufficient permissions!",
-					},
-				});
-			});
-			if (success) serverDocument.query.id("config.room_data", msg.channel.id).remove();
-		} else {
-			await question.edit({
-				embed: {
-					color: Colors.PROMPT,
-					title: "I'll keep the room intact 😅",
-					description: "Do you want to add any members to this channel?",
-					footer: {
-						text: "You have 1 minute to respond.",
-					},
-				},
-			});
-			response = (await msg.channel.awaitMessages(res => res.author.id === msg.author.id, { max: 1, time: 60000 })).first();
-			if (response) {
-				try {
-					await response.delete();
-				} catch (err) {
-					// No-op
-				}
-			}
-			if (response && configJS.yesStrings.includes(response.content.toLowerCase().trim())) {
-				await question.edit({
-					embed: {
-						color: Colors.PROMPT,
-						description: "Please send the names of the members you'd like to add.",
-						footer: {
-							text: "You can separate them with '|'",
-						},
-					},
-				});
-				response = (await msg.channel.awaitMessages(res => res.author.id === msg.author.id, { max: 1, time: 60000 })).first();
-				try {
-					await response.delete();
-				} catch (err) {
-					// No-op
-				}
-
-				const failed = [];
-				const members = ArgParser.parseQuoteArgs(response.content, response.content.includes("|") ? "|" : " ");
-				await Promise.all(members.map(async memberQuery => {
-					let member;
-					try {
-						member = await client.memberSearch(memberQuery, msg.guild);
-					} catch (err) {
-						return failed.push(memberQuery);
-					}
-					if (!member || !member.user) return;
-					msg.channel.updateOverwrite(member, {
-						VIEW_CHANNEL: true,
-					}, `Room Management | Command issued by ${msg.member.tag}`).catch(err => {
-						logger.debug(`Failed to add member '${member.user.username}' to room '${msg.channel.name}' on server '${msg.guild.name}'`, { svrid: msg.guild.id, chid: msg.channel.id, usrid: member.id }, err);
+	if(roomDocument) {
+		msg.channel.createMessage(`This room was created ${moment(roomDocument.created_timestamp).fromNow()}. Would you like to delete it?`).then(() => {
+			bot.awaitMessage(msg.channel.id, msg.author.id, message => {
+				if(config.yes_strings.indexOf(message.content.toLowerCase().trim())>-1) {
+					msg.channel.delete().then(() => {
+						roomDocument.remove();
+						serverDocument.save(err => {
+							if(err) {
+								winston.error("Failed to save server data for room deletion", {svrid: msg.channel.guild.id}, err);
+							}
+						});
+					}).catch(err => {
+						winston.error(`Failed to delete room '${msg.channel.name}' on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id}, err);
+						msg.channel.createMessage("Discord won't let me delete this room, so you're going to have to ask a mod to do it instead...");
 					});
-				}));
-				question.edit({
-					embed: {
-						color: Colors.SUCCESS,
-						description: "Welcome, new people! 😘",
-						footer: !failed.length ? undefined : {
-							text: `I couldn't find members for ${failed.splice(0, 3).join(", ")}${failed.length > 3 ? " and more" : ""}`,
-						},
-					},
-				});
-			} else {
-				question.edit({
-					embed: {
-						color: Colors.SUCCESS,
-						description: "Ok! I won't add any members either.",
-					},
-				});
-			}
-		}
-	} else if (msg.suffix) {
-		const args = ArgParser.parseQuoteArgs(msg.suffix);
-		if (["text", "voice"].includes(args[0].toLowerCase())) {
-			const [type] = args.splice(0, 1);
-			const members = [];
-
-			await Promise.all(args.map(async memberQuery => {
-				const member = await client.memberSearch(memberQuery, msg.guild).catch(() => {
-					// No-op
-				});
-				if (member) members.push(member);
-			}));
-
-			if (!serverDocument.config.room_category || !msg.guild.channels.has(serverDocument.config.room_category)) {
-				const categoryChannel = await msg.guild.channels.create("Talk Rooms", {
-					reason: "Room Management | Creating room category",
-					type: "category",
-				});
-				serverQueryDocument.set("config.room_category", categoryChannel.id);
-			}
-
-			const permissionOverwrites = members.map(member => ({
-				id: member.user.id,
-				type: "member",
-				allow: "VIEW_CHANNEL",
-			}));
-
-			const channel = await msg.guild.channels.create(`talk-room-${Date.now()}`, {
-				reason: `Room Management | Command issued by ${msg.author.tag}`,
-				type,
-				parent: serverDocument.config.room_category,
-				topic: `Talk Room created by ${msg.author.tag}`,
-				permissionOverwrites: [{
-					id: msg.guild.id,
-					type: "role",
-					deny: "VIEW_CHANNEL",
-				}, {
-					id: msg.author.id,
-					type: "member",
-					allow: "VIEW_CHANNEL",
-				}, ...permissionOverwrites],
-			}).catch(err => {
-				logger.debug(`Failed to create talk room in '${msg.guild.name}'`, { svrid: msg.guild.id, err });
+				} else {
+					msg.channel.createMessage("Whew 😅 Do you want to add any members to this channel?").then(() => {
+						bot.awaitMessage(msg.channel.id, msg.author.id, message => {
+							if(config.yes_strings.indexOf(message.content.toLowerCase().trim())>-1) {
+								msg.channel.createMessage("Please enter the names of the members you'd like to add, separated by `|`:").then(() => {
+									bot.awaitMessage(msg.channel.id, msg.author.id, message => {
+										message.content.split("|").forEach(membername => {
+											const member = bot.memberSearch(membername, msg.channel.guild);
+											if(member) {
+												msg.channel.editPermission(member.id, 3072, null, "member").then().catch(err => {
+													if(err) {
+														winston.error(`Failed to add member '${member.user.username}' to room '${msg.channel.name}' on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: member.id}, err);
+													}
+												});
+											}
+										});
+										msg.channel.createMessage("Welcome, new people! 😘");
+									});
+								});
+							}
+						});
+					});
+				}
 			});
-			if (channel && channel.type === "text") {
-				channel.send({
-					embed: {
-						color: Colors.SUCCESS,
-						title: "First! 🐬",
-						description: `Use \`${msg.guild.commandPrefix}${commandData.name}\` to delete this room or add members.`,
-					},
-				});
-			} else if (channel && channel.type === "voice") {
-				msg.send({
-					embed: {
-						color: Colors.SUCCESS,
-						title: "Room created! 🐬",
-						description: `The room will automatically be deleted once everyone leaves.`,
-					},
-				});
+		});
+	} else if(suffix && ["text", "voice"].indexOf(suffix.split(" ")[0].toLowerCase())>-1) {
+		const type = channelTypes[suffix.split(" ")[0].toLowerCase()];
+		suffix = suffix.substring(suffix.indexOf(" ")+1);
+		const members = [bot.user, msg.author];
+		suffix.split("|").forEach(membername => {
+			const member = bot.memberSearch(membername, msg.channel.guild);
+			if(member) {
+				members.push(member);
+			}
+		});
+
+		msg.channel.guild.createChannel(`awesomebot-room-${Date.now()}`, type).then(ch => {
+			msg.channel.createMessage(`The ${suffix.split(" ")[0].toLowerCase()} room ${ch.mention} is now available! 😎`);
+
+			let permissionConstant = 3145728;
+			if(ch.type==0) {
+				permissionConstant = 3072;
+				ch.createMessage(`**First!** 🐬 Use \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name}\` to delete this room or add members.`);
 			}
 
-			if (channel) serverQueryDocument.push("config.room_data", { _id: channel.id });
-		} else {
-			logger.silly(`Invalid parameters \`${msg.suffix}\` provided for ${commandData.name}`, { usrid: msg.author.id });
-			msg.sendInvalidUsage(commandData);
-		}
-	} else {
-		msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: "This channel isn't a room!",
-				footer: {
-					text: `Create a new room using ${msg.guild.commandPrefix}${commandData.name} ${commandData.usage}`,
-				},
-			},
+			serverDocument.config.room_data.push({_id: ch.id});
+			serverDocument.save(err => {
+				if(err) {
+					winston.error("Failed to save server data for room creation", {svrid: msg.channel.guild.id}, err);
+				}
+
+				ch.editPermission(msg.channel.guild.id, null, permissionConstant, "role").then(() => {
+					members.forEach(member => {
+						ch.editPermission(member.id, permissionConstant, null, "member").then().catch(err => {
+							winston.error(`Failed to add member '${member.user.username}' to room '${ch.name}' on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: ch.id, usrid: member.id}, err);
+						});
+					});
+				}).catch(err => {
+					winston.error(`Failed to edit @everyone permissions for room '${ch.name}' on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: ch.id}, err);
+				});
+			});
+		}).catch(err => {
+			winston.error(`Failed to create ${suffix.split(" ")[0].toLowerCase()} room on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id}, err);
+			msg.channel.createMessage("I wasn't able to create a room. Please make sure I have permission to manage channels and roles on this server. kthx.");
 		});
+	} else {
+		winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage(`${msg.author.mention} I didn't get that. Please use the syntax \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} ${commandData.usage}\` to create a room!`);
 	}
 };

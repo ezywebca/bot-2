@@ -1,118 +1,126 @@
-const ArgParser = require("../../Modules/MessageUtils/Parser");
-
-module.exports = async ({ Constants: { Colors, Text }, client }, { serverDocument }, msg, commandData) => {
-	if (msg.suffix) {
-		let [target, nickname] = ArgParser.parseQuoteArgs(msg.suffix, "|");
-		if (target && nickname) {
-			if (!msg.member.permissions.has("MANAGE_NICKNAMES")) {
-				return msg.send({
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		if(suffix.indexOf("|") > -1) {
+			if(msg.member.permission.has("manageNicknames")) {
+				const args = suffix.split("|");
+				if(args.length == 2 && args[0].trim()) {
+					const member = bot.memberSearch(args[0].trim(), msg.channel.guild);
+					if(member) {
+						if(args[1].trim() == ".") {
+							args[1] = "";
+						}
+						bot.editGuildMember(msg.channel.guild.id, member.id, {nick: args[1].trim()}).then(() => {
+							msg.channel.createMessage({
+								embed: {
+                                    author: {
+                                        name: bot.user.username,
+                                        icon_url: bot.user.avatarURL,
+                                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                    },
+                                    color: 0x00FF00,
+									description: `**@${bot.getName(msg.channel.guild, serverDocument, member, true)}** now has the nickname \`${member.nick}\``
+								}
+							});
+						}).catch(err => {
+							msg.channel.createMessage({
+								embed: {
+                                    author: {
+                                        name: bot.user.username,
+                                        icon_url: bot.user.avatarURL,
+                                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                    },
+                                    color: 0xFF0000,
+									description: "I guess Discord hates me or something 😰"
+								}
+							});
+							winston.error(`Failed to change nickname for member '${member.user.username}' on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+						});
+					} else {
+						winston.warn(`Requested member does not exist so ${commandData.name} cannot be changed`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+						msg.channel.createMessage({
+							embed: {
+                                author: {
+                                    name: bot.user.username,
+                                    icon_url: bot.user.avatarURL,
+                                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                                },
+                                color: 0xFF0000,
+								description: `I don't know who ${args[0].trim()} is! 😦`
+							}
+						});
+					}
+				} else {
+					winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+					msg.channel.createMessage({
+						embed: {
+							description: `Huh? Use \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} <user>|<name>\` to change someone's nickname`
+						}
+					});
+				}
+			} else {
+				winston.warn(`Member '${msg.author.username}' does not have permission to manage nicknames on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+				msg.channel.createMessage({
 					embed: {
-						color: Colors.MISSING_PERMS,
-						description: `You don't have permission to edit other member's nicks on this server 🔨`,
-					},
+						description: `You don't have permission to edit other people's nicks on this server 🔨`
+					}
 				});
 			}
-
-			if (!target.trim() || !nickname.trim()) {
-				logger.silly(`Invalid parameters \`${msg.suffix}\` provided for ${commandData.name}`, { usrid: msg.author.id });
-				return msg.sendInvalidUsage(commandData);
+		} else {
+			if(suffix == ".") {
+				suffix = "";
 			}
-
-			let member;
-			try {
-				member = await client.memberSearch(target.trim(), msg.guild);
-			} catch (err) {
-				// No-op
-			}
-			if (!member) {
-				return msg.send({
+			bot.editGuildMember(msg.channel.guild.id, msg.author.id, {nick: suffix}).then(() => {
+				msg.channel.createMessage({
 					embed: {
-						color: Colors.SOFT_ERR,
-						description: `I don't know who ${target.trim()} is! 😦`,
-					},
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0x00FF00,
+						description: `You now have the nickname \`${msg.member.nick}\` on this server 💥`
+					}
 				});
-			}
-
-			const { canClientManage, memberAboveAffected } = client.canDoActionOnMember(msg.guild, msg.member, member, "manage");
-
-			if (!canClientManage) {
-				return msg.send({
+			}).catch(err => {
+				msg.channel.createMessage({
 					embed: {
-						color: Colors.SOFT_ERR,
-						title: `I'm sorry, but I can't do that... 😔`,
-						description: `I'm missing permissions to manage that user!\nEither they are above me or I don't have the **Manage Nicknames** permission.`,
-					},
+                        author: {
+                            name: bot.user.username,
+                            icon_url: bot.user.avatarURL,
+                            url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                        },
+                        color: 0xFF0000,
+						description: "I guess Discord hates me or something 😰"
+					}
 				});
-			}
-			if (!memberAboveAffected) {
-				return msg.send({
-					embed: {
-						color: Colors.MISSING_PERMS,
-						title: `I'm sorry, but I cannot let you do that! 😶`,
-						description: `You cannot manage someone who's above you! That's dumb!`,
-					},
-				});
-			}
-			if (nickname.length > 32) {
-				return msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						title: `I'm sorry, but you can't do that... 😔`,
-						description: "Your nickname must not contain more than 32 characters!",
-					},
-				});
-			}
-
-			if (nickname.trim() === ".") nickname = null;
-			await member.edit({ nick: nickname }, `Command issued by ${msg.author.tag}`);
-			msg.send({
-				embed: {
-					color: Colors.SUCCESS,
-					description: `${client.getName(serverDocument, member, true)} now has ${nickname === null ? "no nickname" : `the nickname \`${member.nickname}\``} on this guild 💥`,
-				},
-			});
-		} else if (target) {
-			nickname = target;
-			if (nickname === ".") nickname = null;
-
-			if (!msg.member.manageable) {
-				return msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						title: `I'm sorry, but I can't do that... 😔`,
-						description: `I'm missing permissions to manage you!\nEither you are above me or I don't have the **Manage Nicknames** permission.`,
-					},
-				});
-			}
-			if (nickname.length > 32) {
-				return msg.send({
-					embed: {
-						color: Colors.SOFT_ERR,
-						title: `I'm sorry, but you can't do that... 😔`,
-						description: "Your nickname must not contain more than 32 characters!",
-					},
-				});
-			}
-
-			await msg.member.edit({ nick: nickname }, `Command issued by ${msg.author.tag}`);
-			msg.send({
-				color: Colors.SUCCESS,
-				description: `You now have the nickname \`${msg.member.nickname}\` on this server 💥`,
+				winston.error(`Failed to change nickname for member '${msg.author.username}' on server '${msg.channel.guild.name}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
 			});
 		}
-	} else if (msg.member.nickname) {
-		msg.send({
-			embed: {
-				color: Colors.RESPONSE,
-				description: `Your nick on this guild is \`${msg.member.nickname}\` 🏷`,
-			},
-		});
 	} else {
-		msg.send({
-			embed: {
-				color: Colors.RESPONSE,
-				description: `You don't have a nick on this server. Use \`${msg.guild.commandPrefix}${commandData.name} <name>\` to set one`,
-			},
-		});
+		if(msg.member.nick) {
+			msg.channel.createMessage({
+				embed: {
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x00FF00,
+					description: `🏷 Your nick on this server is \`${msg.member.nick}\``
+				}
+			});
+		} else {
+			msg.channel.createMessage({
+				embed: {
+                    author: {
+                        name: bot.user.username,
+                        icon_url: bot.user.avatarURL,
+                        url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                    },
+                    color: 0x9ECDF2,
+					description: `You don't have a nick on this server. Use \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} <name>\` to set one`
+				}
+			});
+		}
 	}
 };

@@ -11,102 +11,95 @@
 }
 </style>
 <script>
-GAwesomeUtil.searchUsers = (query) => {
-	Turbolinks.visit("/activity/users?q=" + encodeURIComponent(query));
+function searchUsers(query) {
+	window.location.href = "/activity/users?q=" + encodeURIComponent(query);
+}
+
+document.getElementById("search-button").href = "javascript:searchUsers(document.getElementById('search-input').value);";
+document.getElementById("search-input").onkeydown = function() {
+	if(event.keyCode==13) {
+		searchUsers(this.value);
+	}
 };
+mediaStyle(mq);
+$.getJSON("/userlist", function(data) {
+	searchInputAutocomplete = new autoComplete({
+	    selector: "#search-input",
+	    minChars: 2,
+	    source: function(q, res) {
+	    	q = q.toLowerCase();
+	       	res(data.filter(function(a) {
+	       		return a.toLowerCase().indexOf(q)>-1;
+	       	}));
+	    }
+	});
+});
 </script>
 
-<% if ((pageData.activeSearchQuery && pageData.userProfile) || !pageData.activeSearchQuery) { %>
+<% if((activeSearchQuery && data.userProfile) || !activeSearchQuery) { %>
 	<nav class="columns">
 		<div class="column is-8 is-offset-2">
-			<% if (pageData.activeSearchQuery) { %>
+			<% if(activeSearchQuery) { %>
 				<div class="box">
 					<article class="media">
 						<div class="media-left">
-			    			<img class="image profile-image" style="width: 256px;" src="<%= pageData.userProfile.avatar %>" alt="<%= pageData.userProfile.id %>">
+			    			<img class="image profile-image" style="width: 256px;" src="<%= data.userProfile.avatar %>" alt="<%= data.userProfile.id %>">
 		    			</div>
 			    		<div class="media-content">
 							<h2 class="title">
-								<%= pageData.userProfile.username %><small class="subtitle is-4">#<%= pageData.userProfile.discriminator %></small>
-								<span class="tag is-medium <%= pageData.userProfile.statusColor %>"><%= pageData.userProfile.status.charAt(0).toUpperCase() + pageData.userProfile.status.slice(1) %></span>
-								<% if (["108892284119977984", "139836912335716352"].includes(pageData.userProfile.id)) { %>
-								<span class="tag is-medium is-danger">
-									<span class="icon">
-										<i class="fa fa-wrench"></i>
-									</span>
-									&nbsp;
-									Developer
-								</span>
-								<% } else if (pageData.userProfile.isSudoMaintainer) { %>
-								<span class="tag is-medium is-primary">
-									<span class="icon">
-										<i class="fa fa-wrench"></i>
-									</span>
-									&nbsp;
-									Sudo Maintainer
-								</span>
-								<% } else if (pageData.userProfile.isMaintainer) { %>
-								<span class="tag is-medium is-link">
-									<span class="icon">
-										<i class="fa fa-wrench"></i>
-									</span>
-									&nbsp;
-									Maintainer
-								</span>
-								<% } else if (pageData.userProfile.isContributor) { %>
-									<span class="tag is-medium is-link">Contributor</span>
-								<% } %>
+								<%= data.userProfile.username %><small class="subtitle is-4">#<%= data.userProfile.discriminator %></small>
+								<span class="tag is-medium <%= data.userProfile.statusColor %>"><%= data.userProfile.status.charAt(0).toUpperCase() + data.userProfile.status.slice(1) %></span>
 							</h2>
 							<h5 class="subtitle">
-								Joined Discord <span title="<%= pageData.userProfile.rawAccountAge %>"><%= pageData.userProfile.roundedAccountAge %></span>
+								Joined Discord <span title="<%= data.userProfile.rawAccountAge %>"><%= data.userProfile.roundedAccountAge %></span>
 							</h5>
 							<div class="content">
 								<h4 class="title is-3">
-									<% if (pageData.userProfile.game) { %>
+									<% if(data.userProfile.game) { %>
 										<span class="icon is-medium">
 											<i class="fa fa-gamepad"></i>
 										</span>
-										<span>Playing <strong><%= pageData.userProfile.game %></strong></span>
+										<span>Playing <strong><%= data.userProfile.game %></strong></span>
 										<br>
 									<% } %>
-									<% if (pageData.userProfile.status !== "online" && pageData.userProfile.rawLastSeen && pageData.userProfile.lastSeen) { %>
+									<% if(data.userProfile.status!="online" && data.userProfile.rawLastSeen && data.userProfile.lastSeen) { %>
 										<span class="icon is-medium">
 											<i class="fa fa-clock-o"></i>
 										</span>
-										<span>Seen <span title="<%= pageData.userProfile.rawLastSeen %>"><strong><%= pageData.userProfile.lastSeen %></strong></span></span>
+										<span>Seen <span title="<%= data.userProfile.rawLastSeen %>"><strong><%= data.userProfile.lastSeen %></strong></span></span>
 										<br>
 									<% } %>
 									<span class="icon is-medium">
 										<i class="fa fa-user"></i>
 									</span>
-									<span>ID <strong><%= pageData.userProfile.id %></strong></span>
+									<span>ID <strong><%= data.userProfile.id %></strong></span>
 									<br>
-									<% if (pageData.userProfile.mutualServers) { %>
-										<span class="modal-button" pageData-target="#mutual-servers-modal"></span>
+									<% if(data.userProfile.mutualServers) { %>
+										<span class="modal-button" data-target="#mutual-servers-modal">
 									<% } %>
 									<span class="icon is-medium">
 										<i class="fa fa-list-ul"></i>
 									</span>
-									<span data-target="#mutual-servers-modal"><strong><%= pageData.userProfile.mutualServerCount %></strong> server<%= pageData.userProfile.mutualServerCount === 1 ? "" : "s" %> with GAwesomeBot</span>
+									<span><strong><%= data.userProfile.mutualServerCount %></strong> server<%= data.userProfile.mutualServerCount==1 ? "" : "s" %> with AwesomeBot</span>
 								</h4>
 
 								<h3 class="title is-3">
-									<% if (pageData.userProfile.isAfk) { %>
-										<% if (pageData.userProfile.afkMessage) { %>
-											<span class="modal-button" pageData-target="#afk-message-modal">
+									<% if(data.userProfile.isAfk) { %>
+										<% if(data.userProfile.afkMessage) { %>
+											<span class="modal-button" data-target="#afk-message-modal">
 										<% } %>
 										<span class="icon is-medium">
 											<i class="fa fa-keyboard-o"></i>
 										</span>
 										<span>Currently <strong>AFK</strong></span>
-										<% if (pageData.userProfile.afkMessage) { %>
+										<% if(data.userProfile.afkMessage) { %>
 											</span>
 											<div id="afk-message-modal" class="modal">
 												<div class="modal-background"></div>
 												<div class="modal-container">
 													<div class="modal-content">
 														<div class="box">
-															<p class="title is-3"><%= pageData.userProfile.afkMessage %></p>
+															<p class="title is-3"><%= data.userProfile.afkMessage %></p>
 														</div>
 													</div>
 												</div>
@@ -118,25 +111,25 @@ GAwesomeUtil.searchUsers = (query) => {
 									<span class="icon is-medium">
 										<i class="fa fa-star"></i>
 									</span>
-									<span>Has <strong><%= pageData.userProfile.points %></strong> point<%= pageData.userProfile.points === 1 ? "" : "s" %></span>
+									<span>Has <strong><%= data.userProfile.points %></strong> point<%= data.userProfile.points==1 ? "" : "s" %></span>
 									<br>
-									<% if (pageData.userProfile.pastNames && pageData.userProfile.pastNames.length > 0) { %>
-										<span class="modal-button" pageData-target="#past-names-modal">
+									<% if(data.userProfile.pastNames && data.userProfile.pastNames.length>0) { %>
+										<span class="modal-button" data-target="#past-names-modal">
 									<% } %>
 									<span class="icon is-medium">
 										<i class="fa fa-font"></i>
 									</span>
-									<span><strong><%= pageData.userProfile.pastNameCount %></strong> past name<%= pageData.userProfile.pastNameCount === 1 ? "" : "s" %></span>
-									<% if (pageData.userProfile.pastNames && pageData.userProfile.pastNames.length > 0) { %>
+									<span><strong><%= data.userProfile.pastNameCount %></strong> past name<%= data.userProfile.pastNameCount==1 ? "" : "s" %></span>
+									<% if(data.userProfile.pastNames && data.userProfile.pastNames.length>0) { %>
 										</span>
 										<div id="past-names-modal" class="modal">
 											<div class="modal-background"></div>
 											<div class="modal-container">
 												<div class="modal-content">
 													<div class="box">
-														<% pageData.userProfile.pastNames.forEach(pastName => { %>
-															<p class="title is-3"><%= pastName %></p>
-														<% }); %>
+														<% for(var i=0; i<data.userProfile.pastNames.length; i++) { %>
+															<p class="title is-3"><%= data.userProfile.pastNames[i] %></p>
+														<% } %>
 													</div>
 												</div>
 											</div>
@@ -145,10 +138,10 @@ GAwesomeUtil.searchUsers = (query) => {
 									<% } %>
 								</h3>
 
-								<% if (pageData.userProfile.profileFields) { %>
+								<% if(data.userProfile.profileFields) { %>
 									<h4 class="title is-4">
-										<% for(var key in pageData.userProfile.profileFields) { %>
-											<span><%= key.charAt(0).toUpperCase() + key.slice(1) %>: <%- pageData.userProfile.profileFields[key] %></span>
+										<% for(var key in data.userProfile.profileFields) { %>
+											<span><%= key.charAt(0).toUpperCase() + key.slice(1) %>: <%- data.userProfile.profileFields[key] %></span>
 											<br>
 										<% } %>
 									</h4>
@@ -158,30 +151,30 @@ GAwesomeUtil.searchUsers = (query) => {
 					</article>
 				</div>
 				<script>
-				document.getElementById("frame").style.backgroundImage = "url('<%= pageData.userProfile.backgroundImage %>')";document.getElementById("frame").style.backgroundSize = "cover";document.getElementById("frame").style.paddingBottom = "200px"
+				document.getElementById("frame").style.backgroundImage = "url('<%= data.userProfile.backgroundImage %>')";document.getElementById("frame").style.backgroundSize = "cover";document.getElementById("frame").style.paddingBottom = "200px"
 				</script>
-				<% if (pageData.userProfile.mutualServers) { %>
+				<% if(data.userProfile.mutualServers) { %>
 					<div id="mutual-servers-modal" class="modal">
 						<div class="modal-background"></div>
 						<div class="modal-container">
 							<div class="modal-content">
 								<div class="box">
-									<% pageData.userProfile.mutualServers.forEach(mutualServer => { %>
+									<% for(var i=0; i<data.userProfile.mutualServers.length; i++) { %>
 										<article class="media">
 											<div class="media-left">
-												<img class="image is-64x64" src="<%= mutualServer.icon %>" alt="<%= mutualServer.id %>">
+												<img class="image is-64x64" src="<%= data.userProfile.mutualServers[i].icon %>" alt="<%= data.userProfile.mutualServers[i].id %>">
 											</div>
 											<div class="media-content">
-												<p class="title is-3"><%= mutualServer.name %></p>
-												<p class="subtitle is-5">Owned by @<%= mutualServer.owner %></p>
+												<p class="title is-3"><%= data.userProfile.mutualServers[i].name %></p>
+												<p class="subtitle is-5">Owned by @<%= data.userProfile.mutualServers[i].owner %></p>
 											</div>
-											<a class="media-right" href="/activity/servers?q=<%= mutualServer.name %>">
+											<a class="media-right" href="/activity/servers?q=<%= data.userProfile.mutualServers[i].name %>">
 												<span class="icon is-medium">
 													<i class="fa fa-info"></i>
 												</span>
 											</a>
 										</article>
-									<% }); %>
+									<% } %>
 								</div>
 							</div>
 						</div>
@@ -190,32 +183,32 @@ GAwesomeUtil.searchUsers = (query) => {
 				<% } %>
 			<% } else { %>
 				<script>
-				document.getElementById("frame").style.backgroundImage = ""; document.getElementById("frame").style.paddingBottom = "";
+				document.getElementById("frame").style.backgroundImage = "";document.getElementById("frame").style.paddingBottom = "";
 				</script>
 				<div class="box hero">
 					<article class="media">
 			    		<div class="media-content">
-							<h3 class="subtitle is-3">
+							<h2 class="title">
 								<span class="icon is-medium">
 									<i class="fa fa-star"></i>
 								</span>
-								<span><strong><%= pageData.totalPoints %></strong> point<%= pageData.totalPoints === 1 ? "" : "s" %> total</span>
-							</h3>
-							<h3 class="subtitle is-3">
+								<span><strong><%= data.totalPoints %></strong> point<%= data.totalPoints==1 ? "" : "s" %> total</span>
+							</h2>
+							<h2 class="title">
 								<span class="icon is-medium">
 									<i class="fa fa-user"></i>
 								</span>
-								<span><strong><%= pageData.publicProfilesCount %></strong> public user profile<%= pageData.publicProfilesCount === 1 ? "" : "s" %></span>
-							</h3>
-							<h3 class="subtitle is-3">
+								<span><strong><%= data.publicProfilesCount %></strong> public user profile<%= data.publicProfilesCount==1 ? "" : "s" %></span>
+							</h2>
+							<h2 class="title">
 								<span class="icon is-medium">
 									<i class="fa fa-bell"></i>
 								</span>
-								<span><strong><%= pageData.reminderCount %></strong> reminder<%= pageData.reminderCount === 1 ? "" : "s" %> set</span>
-							</h3>
+								<span><strong><%= data.reminderCount %></strong> reminder<%= data.reminderCount==1 ? "" : "s" %> set</span>
+							</h2>
 						</div>
 				    	<div class="media-right">
-				    		<img class="image profile-image" style="width: 168px;border-radius: 100%;" src="/static/img/profile.png">
+				    		<img class="image profile-image" style="width: 132px;border-radius: 100%;" src="/static/img/profile.png">
 			    		</div>
 					</article>
 				</div>
@@ -224,8 +217,8 @@ GAwesomeUtil.searchUsers = (query) => {
 	</nav>
 <% } else { %>
 	<script>
-	document.getElementById("frame").style.backgroundImage = ""; document.getElementById("frame").style.paddingBottom = "";
+	document.getElementById("frame").style.backgroundImage = "";document.getElementById("frame").style.paddingBottom = "";
 	</script>
 	<% var resetUrl = "/activity/users?q="; %>
-	<%- include("../partials/no-results", { isSearchQuery: true, activeSearchQuery: pageData.activeSearchQuery, resetUrl, mode: pageData.mode }) %>
+	<% include ../partials/no-results %>
 <% } %>

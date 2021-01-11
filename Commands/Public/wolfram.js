@@ -1,45 +1,27 @@
-const fetch = require("chainfetch");
-const { tokens: { wolframAppID } } = require("../../Configurations/auth");
+const wolfram_node = require("wolfram-node");
+const auth = require("./../../Configuration/auth.json");
 
-module.exports = async ({ Constants: { Colors, APIs, UserAgent, Text } }, documents, msg, commandData) => {
-	if (!msg.suffix) {
-		return msg.sendInvalidUsage(commandData);
-	}
-
-	const response = await msg.send(Text.THIRD_PARTY_FETCH("Fetching data from Wolfram|Alpha"));
-
-	const query = encodeURIComponent(msg.suffix);
-	const body = (await fetch.get(APIs.WOLFRAM(wolframAppID, query)).set("User-Agent", UserAgent).onlyBody()).queryresult;
-	if (body.success && body.pods.length) {
-		const fields = body.pods.map(pod => ({
-			name: pod.title,
-			value: pod.subpods[0].plaintext && pod.subpods[0].plaintext !== "" ? pod.subpods[0].plaintext : `[Image](${pod.subpods[0].img.src})`,
-		}));
-
-		response.edit({
-			embed: {
-				color: Colors.RESPONSE,
-				title: "Here's your result from Wolfram|Alpha!",
-				fields,
-			},
-		});
-	} else if (!body.error && body.numpods === 0) {
-		response.edit({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: "Wolfram|Alpha has nothing 💡",
-				footer: {
-					text: "Try searching for something else!",
-				},
-			},
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	if(suffix) {
+		const wolfram = wolfram_node.init(auth.tokens.wolfram_app_id);
+		wolfram.ask({query: suffix}, (err, res) => {
+			if(err) {
+				winston.error("Failed to connect to Wolfram|Alpha", {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+				msg.channel.createMessage("Unfortunately, I didn't get anything back from Wolfram|Alpha 😔");
+			} else {
+				try {
+					const info = res.pod.map(a => {
+						return `**${a.$.title}**\n${a.subpod[0].plaintext[0] || a.subpod[0].img[0].$.src}`;
+					});
+					bot.sendArray(msg.channel, info);
+				} catch(err) {
+					winston.warn(`No Wolfram|Alpha data found for '${suffix}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+					msg.channel.createMessage("💡 Wolfram|Alpha has nothing");
+				}
+			}
 		});
 	} else {
-		logger.debug("Error occurred at Wolfram|Alpha!", { svrid: msg.guild.id, query: query, err: body.error });
-		response.edit({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: "Unfortunately, I didn't get anything back from Wolfram|Alpha 😔",
-			},
-		});
+		winston.warn(`Parameters not provided for '${commandData.name}' command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage(`${msg.author.mention} i gotta have somethin to search for bruh`);
 	}
 };

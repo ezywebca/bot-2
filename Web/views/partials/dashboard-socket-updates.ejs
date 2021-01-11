@@ -1,5 +1,17 @@
+<script src="/static/js/socket.io-1.4.5.js"></script>
 <script>
-	GAwesomeData.dashboard.svrid = "<%= serverData.isMaintainer ? 'maintainer' : serverData.id %>";
+var socket = io("<%= currentPage %>");
+var hide_update_modal = false;
+socket.on("update", function(data) {
+	if(!hide_update_modal && "<%= serverData.isMaintainer ? 'maintainer' : serverData.id %>"==data) {
+		$("html").addClass("is-clipped");
+	    $("#update-modal").addClass("is-active");
+    }
+});
+function closeUpdateModal() {
+	$("html").removeClass("is-clipped");
+    $("#update-modal").removeClass("is-active");
+}
 </script>
 
 <div id="update-modal" class="modal">
@@ -12,7 +24,7 @@
 					<nav class="level">
 						<div class="level-left">
 							<div class="level-item">
-								<a class="button is-primary" onclick="Turbolinks.visit('');">
+								<a class="button is-primary" onclick="window.location.reload();">
 									<span class="icon">
 										<i class="fa fa-refresh"></i>
 									</span>
@@ -20,19 +32,11 @@
 								</a>
 							</div>
 							<div class="level-item">
-								<a class="button modal-button is-warning close-update-modal">
+								<a class="button modal-button is-warning" onclick="closeUpdateModal();">
 									<span class="icon">
 										<i class="fa fa-arrow-right"></i>
 									</span>
 									<span>Continue without reloading</span>
-								</a>
-							</div>
-							<div class="level-item">
-								<a class="button modal-button is-danger close-update-modal" onclick="localStorage.setItem('dashboardUpdates', 'none');">
-									<span class="icon">
-										<i class="fa fa-times"></i>
-									</span>
-									<span>Do not warn again</span>
 								</a>
 							</div>
 						</div>

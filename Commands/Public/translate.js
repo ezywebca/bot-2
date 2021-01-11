@@ -1,62 +1,39 @@
-const ArgParser = require("./../../Modules/MessageUtils/Parser");
-const mstranslate = require("./../../Modules/MicrosoftTranslate");
+const mstranslate = require("./../../Modules/MicrosoftTranslate.js");
 
-module.exports = ({ Constants: { Colors, Text }, client }, { serverDocument }, msg, commandData) => {
-	const args = ArgParser.parseQuoteArgs(msg.suffix || "", " ");
-	if (args.length < 3) {
-		return msg.sendInvalidUsage(commandData);
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg, suffix, commandData) => {
+	const target = suffix.substring(suffix.lastIndexOf(" ")+1);
+	suffix = suffix.substring(0, suffix.lastIndexOf(" "));
+	if(suffix.endsWith(" to")) {
+		suffix = suffix.substring(0, suffix.lastIndexOf(" to"));
 	}
+	const source = suffix.substring(suffix.lastIndexOf(" ")+1);
+	const data = suffix.substring(0, suffix.lastIndexOf(" "));
 
-	let source, target, text;
-	// <source> to <target> <text>
-	if (args[1] === "to") {
-		[source, , target] = args;
-		text = args.splice(3).join(" ").trim();
-	// <source> <target> <text>
-	} else {
-		[source, target] = args;
-		text = args.splice(2).join(" ").trim();
-	}
-
-	const sendTranslation = (from, to, res) => msg.send({
-		embed: {
-			color: Colors.RESPONSE,
-			title: `Your ${from} text in ${to}:`,
-			description: `\`\`\`${res}\`\`\``,
-			footer: {
-				text: `Translated using Microsoft Translator. The translated text might not be 100% accurate!`,
-			},
-		},
-	});
-	const onFail = (err, src) => {
-		msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: `Something went wrong while trying to ${src === null ? "detect your text's language" : `translate your ${src} text`}! 😵`,
-			},
-		});
-		if (err) logger.debug(`Failed to ${src === null ? "auto-detect language" : "translate text"} for ${commandData.name} command.`, { svrid: msg.guild.id, chid: msg.channel.id, msgid: msg.id }, err);
-	};
-
-	const translateText = (from, to, input) => {
-		mstranslate.translate({ text: input, from, to }, (err, res) => {
-			if (err || !res) {
-				onFail(err, from);
+	if(target && data && source == "?") {
+		mstranslate.detect({text: data}, (err, res) => {
+			if(err) {
+				winston.error(`Failed to detect language for '${data}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
 			} else {
-				sendTranslation(from, to, res);
+				mstranslate.translate({text: data, from: res, to: target}, (err, res) => {
+					if(err) {
+						winston.error(`Failed to translate '${data}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
+					} else {
+						msg.channel.createMessage(`\`\`\`${res}\`\`\``);
+					}
+				});
 			}
 		});
-	};
-
-	if (source === "?") {
-		mstranslate.detect({ text }, (err, res) => {
-			if (err || !res || res === "") {
-				onFail(err, null);
+	}
+	else if(target && source && data) {
+		mstranslate.translate({text: data, from: source, to: target}, (err, res) => {
+			if(err) {
+				winston.error(`Failed to translate '${data}'`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id}, err);
 			} else {
-				translateText(res, target, text);
+				msg.channel.createMessage(`\`\`\`${res}\`\`\``);
 			}
 		});
 	} else {
-		translateText(source, target, text);
+		winston.warn(`Invalid parameters '${suffix}' provided for ${commandData.name} command`, {svrid: msg.channel.guild.id, chid: msg.channel.id, usrid: msg.author.id});
+		msg.channel.createMessage(`${msg.author.mention} Um i'm v confused. pls use \`${bot.getCommandPrefix(msg.channel.guild, serverDocument)}${commandData.name} ${commandData.usage}\``);
 	}
 };

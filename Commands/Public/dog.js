@@ -1,35 +1,19 @@
-const { RandomAnimals } = require("../../Modules/");
+const random = require("random-animal");
 
-module.exports = async ({ Constants: { Colors } }, documents, msg, commandData) => {
-	await msg.send({
-		embed: {
-			color: Colors.INFO,
-			title: `We're getting you a cute dog picture 🐶`,
-			description: `Please stand by...`,
-		},
-	});
-	try {
-		const dog = await RandomAnimals.dog();
-		if (dog) {
-			msg.send({
-				embed: {
-					color: Colors.LIGHT_GREEN,
-					title: `Here's your adorale dog picture! Woof! 🐶`,
-					image: {
-						url: dog,
-					},
-				},
-			});
-		}
-	} catch (err) {
-		return msg.send({
-			embed: {
-				color: Colors.SOFT_ERR,
-				description: `I failed to fetch a dog picture...`,
-				footer: {
-					text: `Pwease try again...`,
-				},
-			},
-		});
-	}
+module.exports = (bot, db, config, winston, userDocument, serverDocument, channelDocument, memberDocument, msg) => {
+    random.dog().then(url => {
+        msg.channel.createMessage({
+            embed: {
+                author: {
+                    name: bot.user.username,
+                    icon_url: bot.user.avatarURL,
+                    url: "https://github.com/GilbertGobbels/GAwesomeBot"
+                },
+                color: 0x00FF00,
+                image: {
+                    url: url
+                }
+            }
+        });
+    });
 };

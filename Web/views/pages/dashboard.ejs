@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-	<title>GAwesomeBot Dashboard</title>
+	<title>AwesomeBot Dashboard</title>
 	<% include ../partials/head %>
 
 	<script>
@@ -27,7 +27,7 @@
 	</script>
 </head>
 <body onload="mediaStyle();">
-	<section id="header" class="main-header-section hero is-primary is-fullheight is-bold">
+	<section id="header" class="hero is-primary is-fullheight is-bold" style="background: url('/header-image');background-size: cover;">
 		<div class="hero-head">
 			<% include ../partials/header %>
 		</div>
@@ -38,10 +38,10 @@
 						Welcome, <strong><%= authUser.username %></strong>!
 					</h1>
 					<h3 class="subtitle is-3">
-						<% if (serverData.length > 0) { %>
+						<% if(serverData.length>0) { %>
 							Select a server to configure.
 						<% } else { %>
-							<span>You don&#39;t have any guilds</span>
+							<span>You don&#39;t have any servers</span>
 							<span class="icon is-medium">
 								<i class="fa fa-meh-o"></i>
 							</span>
@@ -51,31 +51,31 @@
 				<br><br><br>
 				<div class="columns">
 					<div class="column is-half is-offset-one-quarter">
-						<% serverData.forEach(server => { %>
-							<% if (!server.botJoined) { %>
-								<a class="media modal-button arrow-link" data-target="#post-add-modal" target="_blank" href="<%= pageData.rawJoinLink + '&guild_id=' + server.id %>">
-							<% } else if (!server.isAdmin) { %>
-								<a class="media modal-button arrow-link" data-target="#not-admin-modal">
+						<% for(var i=0; i<serverData.length; i++) { %>
+							<% if(!serverData[i].botJoined) { %>
+								<a class="media modal-button" data-target="#post-add-modal" target="_blank" href="<%= rawJoinLink + '&guild_id=' + serverData[i].id %>">
+							<% } else if(!serverData[i].isAdmin) { %>
+								<a class="media modal-button" data-target="#not-admin-modal">
 							<% } else { %>
-								<a class="media arrow-link" href="/dashboard/<%= server.id %>/<%= server.id === "maintainer" ? "maintainer" : "overview"%>">
+								<a class="media" href="/dashboard/overview?svrid=<%= serverData[i].id %>">
 							<% } %>
 								<figure class="media-left">
 									<p class="image server-icon is-48x48">
-										<img src="<%= server.icon %>" style="border-radius: 100%;" alt="<%= server.id %>">
+										<img src="<%= serverData[i].icon %>" style="border-radius: 100%;" alt="<%= serverData[i].id %>">
 									</p>
 								</figure>
 								<div class="media-content">
-									<h2 class="subtitle is-2 server-name"><%= server.name %></h2>
+									<h2 class="title is-2 server-name"><%= serverData[i].name %></h2>
 								</div>
-								<% if (server.botJoined && server.isAdmin) { %>
+								<% if(serverData[i].botJoined && serverData[i].isAdmin) { %>
 									<div class="media-right">
-										<span class="icon server-arrow is-primary is-large">
-					                        <i class="fa fa-chevron-right fa-2x"></i>
+										<span class="icon server-arrow is-large">
+					                        <i class="fa fa-chevron-right"></i>
 					                    </span>
 									</div>
 								<% } %>
 							</a>
-						<% }); %>
+						<% } %>
 					</div>
 				</div>
 			</div>
@@ -118,7 +118,7 @@
 				</div>
 			</div>
 		</div>
-		<button class="modal-close is-large"></button>
+		<button class="modal-close"></button>
 	</div>
 	<div id="post-add-modal" class="modal">
 		<div class="modal-background"></div>
@@ -126,12 +126,12 @@
 			<div class="modal-content">
 				<div class="box">
 					<h4 class="title is-4">
-						Make sure to <strong><a href="/dashboard">refresh</a></strong> after adding GAwesomeBot.
+						Make sure to <strong><a href="/dashboard">refresh</a></strong> after adding AwesomeBot.
 					</h4>
 				</div>
 			</div>
 		</div>
-		<button class="modal-close is-large"></button>
+		<button class="modal-close"></button>
 	</div>
 
 	<% include ../partials/footer %>
